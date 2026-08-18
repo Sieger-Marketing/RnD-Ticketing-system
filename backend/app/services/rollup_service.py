@@ -77,11 +77,12 @@ def refresh_release(db: Session, release: DesignRelease, today: date | None = No
         or 0
     )
 
-    # First real start stamps the release; it is not moved again afterwards.
-    if release.actual_start is None and any(t.started_at for t in tasks):
-        release.actual_start = min(
-            t.started_at.date() for t in tasks if t.started_at
-        )
+    # Derived from the tasks every time rather than stamped once. A one-shot
+    # stamp goes stale the moment a task's start is corrected or an earlier
+    # task joins the release, which is how a release ended up claiming it
+    # started after it finished.
+    started = [t.started_at for t in tasks if t.started_at]
+    release.actual_start = min(started).date() if started else None
 
     db.flush()
     return release

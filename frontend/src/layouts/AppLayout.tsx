@@ -10,6 +10,9 @@ import clsx from "clsx";
 import {
   Bell,
   ChevronRight,
+  FileStack,
+  FolderKanban,
+  Layers,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -58,6 +61,27 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         to: "/my-work",
         label: "My Work",
         icon: <ListChecks className="h-4 w-4" />,
+      },
+    ],
+  },
+  {
+    heading: "Delivery",
+    items: [
+      {
+        to: "/projects",
+        label: "Projects",
+        icon: <FolderKanban className="h-4 w-4" />,
+      },
+      {
+        to: "/releases",
+        label: "Design Releases",
+        icon: <Layers className="h-4 w-4" />,
+      },
+      {
+        to: "/templates",
+        label: "Templates",
+        icon: <FileStack className="h-4 w-4" />,
+        anyOf: ["template.view"],
       },
     ],
   },

@@ -697,6 +697,14 @@ def run(db: Session, *, password: str = "Design@123") -> dict:
                         db, task=task, designer=designer, cursor=cursor, counters=counters
                     )
 
+            # rollup_service stamps actual_start the first time a task starts
+            # and never moves it again. While seeding, that happened before
+            # _backdate_task rewrote the task timestamps, so the release was
+            # left claiming it began today while its tasks finished months ago.
+            # Restate it from the backdated tasks.
+            started = [t.started_at for t in tasks if t.started_at]
+            release.actual_start = min(started).date() if started else None
+
             # Every release except the one in flight is genuinely finished, so
             # the sequence reads as a project that has progressed rather than
             # one that stalled at release one.

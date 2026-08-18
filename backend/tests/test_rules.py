@@ -413,3 +413,57 @@ class TestValidation:
             json={"status": "Teleported"},
         )
         assert response.status_code == 422
+
+
+class TestDerivedDates:
+    """A release's actual dates are derived, never stamped once and forgotten.
+
+    A one-shot stamp is how a release came to claim it started in August while
+    its tasks finished in June: the stamp was written before the task
+    timestamps were corrected, and nothing recomputed it afterwards.
+    """
+
+    def test_release_actual_start_follows_its_earliest_task(
+        self, db, sandbox, lead, designer
+    ):
+        from datetime import datetime
+
+        from app.models.release import DesignRelease
+        from app.models.task import Task
+        from app.services import rollup_service
+
+        release_id = sandbox["release"]["id"]
+
+        lead.post(f"/api/tasks/{sandbox['tasks'][0]['id']}/assign",
+                  json={"assigned_to_id": designer.id})
+        designer.post(f"/api/tasks/{sandbox['tasks'][0]['id']}/status",
+                      json={"status": "In Progress"})
+
+        release = db.get(DesignRelease, release_id)
+        rollup_service.refresh_release(db, release)
+        first = release.actual_start
+        assert first is not None, "starting a task must date the release"
+
+        # Correct the task to have started earlier, as the seed's backdating
+        # does. The release must follow rather than keep the stale date.
+        task = db.get(Task, sandbox["tasks"][0]["id"])
+        task.started_at = datetime.combine(
+            first - timedelta(days=10), datetime.min.time()
+        )
+        db.flush()
+
+        rollup_service.refresh_release(db, release)
+        assert release.actual_start == first - timedelta(days=10)
+
+    def test_no_release_starts_after_it_ends(self, db):
+        """The invariant the derived date exists to protect."""
+        from sqlalchemy import select
+
+        from app.models.release import DesignRelease
+
+        offenders = [
+            r.code
+            for r in db.execute(select(DesignRelease)).scalars()
+            if r.actual_start and r.actual_end and r.actual_start > r.actual_end
+        ]
+        assert not offenders, f"releases starting after they end: {offenders}"

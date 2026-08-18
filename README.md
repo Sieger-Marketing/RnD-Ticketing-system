@@ -18,14 +18,14 @@ PROJECT → DESIGN RELEASE → PRODUCT TEMPLATE → TASK → EXECUTION
 | Core workflow API | 114 endpoints, OpenAPI documented |
 | KPI / capacity / delay / health engines | Complete, config-driven |
 | Demo data | 15 users, 10 projects, 26 releases, 160 tasks, 340 time entries |
-| Automated tests | 99 passing, including the full acceptance scenario |
-| Frontend | Stage 1: auth, app shell, role-based routing, all four dashboards |
+| Automated tests | 101 passing, including the full acceptance scenario |
+| Frontend | Stages 1-2: dashboards, projects, releases, template library |
 
 ## Requirements
 
 * Python 3.12+
 * PostgreSQL 16+ (developed against 18)
-* Node 20+ (for the frontend, once it exists)
+* Node 20+ (for the frontend)
 
 ## Setup
 

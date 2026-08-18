@@ -37,7 +37,7 @@ from app.db.base_class import Base, BusinessEntity, Timestamped, UUIDPrimaryKey
 if TYPE_CHECKING:
     from app.models.catalog import Product, ProductFamily
     from app.models.release import DesignRelease
-    from app.models.user import User
+    from app.models.user import Skill, User
 
 
 class DesignTemplate(Base, BusinessEntity):
@@ -160,3 +160,6 @@ class TemplateTask(Base, UUIDPrimaryKey, Timestamped):
     depends_on_sequence: Mapped[int | None] = mapped_column(Integer)
 
     version: Mapped[DesignTemplateVersion] = relationship(back_populates="tasks")
+    # Eagerly joined: the template screens always render the skill name
+    # alongside the task, and a lazy load here would be one query per row.
+    required_skill: Mapped["Skill | None"] = relationship(lazy="joined")

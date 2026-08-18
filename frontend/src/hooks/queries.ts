@@ -650,3 +650,43 @@ export function useUpdateSetting() {
     },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Template authoring
+// ---------------------------------------------------------------------------
+
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      post<DesignTemplate>("/api/templates", body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
+export function useCreateDraft(templateId: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (changeNote: string) =>
+      post(`/api/templates/${templateId}/versions`, { change_note: changeNote }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
+export function useSaveVersionTasks(versionId: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (tasks: Record<string, unknown>[]) =>
+      put(`/api/templates/versions/${versionId}/tasks`, tasks),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}
+
+export function usePublishVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (versionId: UUID) =>
+      post(`/api/templates/versions/${versionId}/publish`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+  });
+}

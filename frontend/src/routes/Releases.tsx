@@ -1,0 +1,249 @@
+/**
+ * Design release list (spec section 8).
+ */
+
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+import { ChipFilter, FilterBar, Pagination, SearchInput } from "@/components/ui/Filters";
+import {
+  EmptyState,
+  ErrorState,
+  HealthPill,
+  PageHeader,
+  PriorityLabel,
+  ProgressBar,
+  SkeletonRows,
+  StatusBadge,
+} from "@/components/ui/primitives";
+import { useReleases } from "@/hooks/queries";
+import { DASH, hours, shortDate, variance } from "@/lib/format";
+import { HEALTH_LEVELS, RELEASE_STATUSES } from "@/lib/vocab";
+
+export default function Releases() {
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+
+  const page = Number(params.get("page") ?? 1);
+  const search = params.get("search") ?? "";
+  const status = params.getAll("status");
+  const health = params.getAll("health");
+  const overdueOnly = params.get("overdue_only") === "true";
+
+  const update = (mutate: (next: URLSearchParams) => void) => {
+    const next = new URLSearchParams(params);
+    mutate(next);
+    setParams(next, { replace: true });
+  };
+
+  const setList = (key: string, values: string[]) =>
+    update((next) => {
+      next.delete(key);
+      values.forEach((v) => next.append(key, v));
+      next.delete("page");
+    });
+
+  const { data, isLoading, isError, error, refetch } = useReleases({
+    page,
+    page_size: 25,
+    search,
+    status,
+    health,
+    overdue_only: overdueOnly || undefined,
+    sort: "-planned_end",
+  });
+
+  const hasFilters =
+    Boolean(search) || status.length > 0 || health.length > 0 || overdueOnly;
+
+  return (
+    <>
+      <PageHeader
+        title="Design Releases"
+        subtitle={
+          data
+            ? `${data.total.toLocaleString()} release${data.total === 1 ? "" : "s"} visible to you`
+            : undefined
+        }
+      />
+
+      <FilterBar>
+        <SearchInput
+          value={search}
+          onChange={(value) =>
+            update((next) => {
+              if (value) next.set("search", value);
+              else next.delete("search");
+              next.delete("page");
+            })
+          }
+          placeholder="Release name or code"
+          className="w-full sm:w-64"
+        />
+        <ChipFilter
+          label="Status"
+          options={RELEASE_STATUSES}
+          selected={status}
+          onChange={(v) => setList("status", v)}
+        />
+        <ChipFilter
+          label="Health"
+          options={HEALTH_LEVELS}
+          selected={health}
+          onChange={(v) => setList("health", v)}
+        />
+        <label className="flex items-center gap-1.5 text-xs text-ink-700">
+          <input
+            type="checkbox"
+            checked={overdueOnly}
+            onChange={(e) =>
+              update((next) => {
+                if (e.target.checked) next.set("overdue_only", "true");
+                else next.delete("overdue_only");
+                next.delete("page");
+              })
+            }
+          />
+          Overdue only
+        </label>
+      </FilterBar>
+
+      <div className="card">
+        {isLoading && <SkeletonRows rows={8} cols={7} />}
+
+        {isError && (
+          <ErrorState
+            message={error instanceof Error ? error.message : undefined}
+            onRetry={() => void refetch()}
+          />
+        )}
+
+        {data && data.items.length === 0 && (
+          <EmptyState
+            title={hasFilters ? "No releases match these filters" : "No releases yet"}
+            description={
+              hasFilters
+                ? "Try clearing a filter."
+                : "Releases are created from inside a project."
+            }
+          />
+        )}
+
+        {data && data.items.length > 0 && (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[940px]">
+                <thead className="border-b border-ink-200 bg-ink-50">
+                  <tr>
+                    <th className="th">Release</th>
+                    <th className="th">Project</th>
+                    <th className="th">Team lead</th>
+                    <th className="th">Status</th>
+                    <th className="th">Priority</th>
+                    <th className="th w-32">Progress</th>
+                    <th className="th text-right">Est / Act</th>
+                    <th className="th text-right">Variance</th>
+                    <th className="th">Due</th>
+                    <th className="th">Health</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink-100">
+                  {data.items.map((release) => (
+                    <tr
+                      key={release.id}
+                      className="cursor-pointer hover:bg-ink-50"
+                      onClick={() => navigate(`/releases/${release.id}`)}
+                    >
+                      <td className="td max-w-[18rem]">
+                        <div className="truncate font-medium text-ink-900">
+                          {release.name}
+                        </div>
+                        <div className="font-mono text-2xs text-ink-400">
+                          {release.code} · {release.release_type}
+                        </div>
+                      </td>
+                      <td className="td text-xs text-ink-600">
+                        <div className="max-w-[12rem] truncate">
+                          {release.project_name ?? DASH}
+                        </div>
+                        <div className="font-mono text-2xs text-ink-400">
+                          {release.project_code}
+                        </div>
+                      </td>
+                      <td className="td text-xs text-ink-600">
+                        {release.team_lead_name ?? (
+                          <span className="text-rag-amber">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="td">
+                        <StatusBadge status={release.status} />
+                      </td>
+                      <td className="td">
+                        <PriorityLabel priority={release.priority} />
+                      </td>
+                      <td className="td">
+                        <ProgressBar
+                          value={release.completion_percent}
+                          tone={
+                            release.health === "RED"
+                              ? "red"
+                              : release.health === "AMBER"
+                                ? "amber"
+                                : "brand"
+                          }
+                        />
+                      </td>
+                      <td className="td text-right text-xs tabular text-ink-600">
+                        {hours(release.estimated_hours)} / {hours(release.actual_hours)}
+                      </td>
+                      <td className="td text-right text-xs tabular">
+                        {release.estimated_hours > 0 ? (
+                          <span
+                            className={
+                              release.actual_hours > release.estimated_hours
+                                ? "font-medium text-rag-amber"
+                                : "text-ink-600"
+                            }
+                          >
+                            {variance(release.actual_hours - release.estimated_hours)}
+                          </span>
+                        ) : (
+                          <span className="text-ink-300">{DASH}</span>
+                        )}
+                      </td>
+                      <td className="td text-xs">
+                        <span
+                          className={
+                            release.delay_days > 0
+                              ? "font-medium text-rag-red"
+                              : "text-ink-600"
+                          }
+                        >
+                          {shortDate(release.planned_end)}
+                        </span>
+                        {release.delay_days > 0 && (
+                          <span className="ml-1 text-2xs text-rag-red">
+                            +{release.delay_days}d
+                          </span>
+                        )}
+                      </td>
+                      <td className="td">
+                        <HealthPill health={release.health} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={data.page}
+              pages={data.pages}
+              total={data.total}
+              pageSize={data.page_size}
+              onPage={(next) => update((p) => p.set("page", String(next)))}
+            />
+          </>
+        )}
+      </div>
+    </>
+  );
+}

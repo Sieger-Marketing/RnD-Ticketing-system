@@ -225,7 +225,9 @@ export interface ProjectSummary {
   id: UUID;
   code: string;
   name: string;
+  customer_id: UUID | null;
   customer_name: string | null;
+  product_id: UUID | null;
   product_name: string | null;
   project_type: string | null;
   priority: Priority;

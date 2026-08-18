@@ -68,7 +68,12 @@ class ProjectSummary(ORMModel):
     id: uuid.UUID
     code: str
     name: str
+    # The ids travel with the names so an edit form or a release's template
+    # lookup can inherit the project's customer and product without a second
+    # round trip.
+    customer_id: uuid.UUID | None = None
     customer_name: str | None = None
+    product_id: uuid.UUID | None = None
     product_name: str | None = None
     project_type: str | None = None
     priority: str
@@ -92,7 +97,9 @@ class ProjectSummary(ORMModel):
             id=p.id,
             code=p.code,
             name=p.name,
+            customer_id=p.customer_id,
             customer_name=p.customer.name if p.customer else None,
+            product_id=p.product_id,
             product_name=p.product.name if p.product else None,
             project_type=p.project_type,
             priority=p.priority,
