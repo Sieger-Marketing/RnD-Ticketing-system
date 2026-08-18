@@ -10,7 +10,12 @@ import { useEffect, useState } from "react";
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import { InlineAlert, Spinner } from "@/components/ui/primitives";
-import { useCreateRelease, useProducts, useUsers } from "@/hooks/queries";
+import {
+  useCreateRelease,
+  useProducts,
+  useUsers,
+  useVocabularies,
+} from "@/hooks/queries";
 import { get } from "@/lib/api";
 import { PRIORITIES, toOptions } from "@/lib/vocab";
 import type { ReleaseDetail } from "@/types/api";
@@ -65,6 +70,7 @@ export function ReleaseCreateModal({
   const create = useCreateRelease();
   const { data: products } = useProducts();
   const { data: leads } = useUsers({ role: "Team Lead" });
+  const { data: vocab } = useVocabularies();
 
   const set = (key: keyof typeof EMPTY) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -166,25 +172,19 @@ export function ReleaseCreateModal({
             required
             hint="Matched against the template library."
           >
-            <TextInput
+            <Select
               id="rtype"
               value={form.release_type}
               onChange={(e) => {
                 set("release_type")(e.target.value);
                 setTouchedTemplate(false);
               }}
-              placeholder="Mechanical Design"
-              list="release-types"
+              placeholder="Choose a release type"
+              options={(vocab?.release_types ?? []).map((v) => ({
+                value: v,
+                label: v,
+              }))}
             />
-            <datalist id="release-types">
-              <option value="Concept Design" />
-              <option value="Mechanical Design" />
-              <option value="Electrical Design" />
-              <option value="Detailed Design" />
-              <option value="Manufacturing Drawing" />
-              <option value="BOM" />
-              <option value="Final Documentation" />
-            </datalist>
           </Field>
 
           <Field label="Product" htmlFor="rproduct">

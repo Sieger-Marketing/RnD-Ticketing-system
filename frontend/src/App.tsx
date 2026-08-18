@@ -22,10 +22,13 @@ import Projects from "@/routes/Projects";
 import ReleaseDetail from "@/routes/ReleaseDetail";
 import Kanban from "@/routes/Kanban";
 import Releases from "@/routes/Releases";
+import Reviews from "@/routes/Reviews";
+import Revisions from "@/routes/Revisions";
 import TeamLeadDashboard from "@/routes/TeamLeadDashboard";
 import TaskDetail from "@/routes/TaskDetail";
 import Tasks from "@/routes/Tasks";
 import Templates from "@/routes/Templates";
+import Timesheet from "@/routes/Timesheet";
 import { useAuth } from "@/store/auth";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -123,6 +126,9 @@ export default function App() {
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/tasks/:taskId" element={<TaskDetail />} />
         <Route path="/kanban" element={<Kanban />} />
+        <Route path="/reviews" element={<Reviews />} />
+        <Route path="/revisions" element={<Revisions />} />
+        <Route path="/timesheet" element={<Timesheet />} />
 
         <Route
           path="/templates"

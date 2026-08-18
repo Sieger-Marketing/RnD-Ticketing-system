@@ -116,6 +116,40 @@ def _validate_setting(key: str, value) -> None:
         if any(not isinstance(d, int) or d < 0 or d > 6 for d in value):
             raise ValidationError("Working days must be integers 0 (Mon) to 6 (Sun).")
 
+    # The two accountability-bearing vocabularies are lists of objects; the
+    # plain ones are lists of strings. Saving the wrong shape does not fail
+    # here without this check -- it fails later inside the overdue-submit path,
+    # where `r["value"]` on a string raises TypeError, turning an admin's typo
+    # into a 500 for every designer. It would also make accountability_for()
+    # fall through to "Controllable", quietly booking all rework against the
+    # team that raised it.
+    if key in {"workflow.delay_reasons", "workflow.revision_categories"}:
+        if not isinstance(value, list) or not value:
+            raise ValidationError(f"{key} must be a non-empty list.")
+        for entry in value:
+            if not isinstance(entry, dict) or "value" not in entry:
+                raise ValidationError(
+                    f"Each {key} entry must be an object with a 'value' key, "
+                    'for example {"value": "Customer Change", '
+                    '"accountability": "External"}.'
+                )
+            if entry.get("accountability") not in {"Controllable", "External"}:
+                raise ValidationError(
+                    f"'{entry['value']}' needs an accountability of "
+                    "'Controllable' or 'External'; it decides whether the "
+                    "rework counts against the team."
+                )
+
+    if key in {
+        "workflow.task_types",
+        "workflow.release_types",
+        "workflow.project_types",
+    }:
+        if not isinstance(value, list) or not value:
+            raise ValidationError(f"{key} must be a non-empty list.")
+        if any(not isinstance(v, str) or not v.strip() for v in value):
+            raise ValidationError(f"Every {key} entry must be a non-empty string.")
+
 
 @router.get("/settings/meta/permissions")
 def permission_catalog(

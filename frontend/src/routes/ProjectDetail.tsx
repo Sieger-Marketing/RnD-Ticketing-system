@@ -398,9 +398,9 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      {projectId && (
+      {projectId && creatingRelease && (
         <ReleaseCreateModal
-          open={creatingRelease}
+          open
           projectId={projectId}
           productId={p.product_id}
           onClose={() => setCreatingRelease(false)}

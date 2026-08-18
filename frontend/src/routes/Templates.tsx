@@ -30,6 +30,7 @@ import {
   useProductFamilies,
   useSkills,
   useTemplates,
+  useVocabularies,
 } from "@/hooks/queries";
 import { DASH } from "@/lib/format";
 import { PRIORITIES } from "@/lib/vocab";
@@ -81,6 +82,7 @@ export default function Templates() {
   const { data: skills } = useSkills();
   const { data: products } = useProducts();
   const { data: families } = useProductFamilies();
+  const { data: vocab } = useVocabularies();
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
@@ -132,7 +134,7 @@ export default function Templates() {
           key: `new-${Date.now()}`,
           sequence,
           name: "",
-          task_type: "Design",
+          task_type: vocab?.task_types?.[0] ?? "",
           description: "",
           default_estimated_hours: 4,
           default_priority: "Medium",
@@ -388,6 +390,7 @@ export default function Templates() {
                   <TaskEditor
                     rows={rows!}
                     skillOptions={skillOptions}
+                    taskTypes={vocab?.task_types ?? []}
                     onChange={updateRow}
                     onAdd={addRow}
                     onRemove={(key) =>
@@ -412,6 +415,7 @@ export default function Templates() {
         onClose={() => setCreatingTemplate(false)}
         products={products ?? []}
         families={families ?? []}
+        releaseTypes={vocab?.release_types ?? []}
         mutation={createTemplate}
       />
 
@@ -546,6 +550,7 @@ function ReadOnlyTasks({ tasks }: { tasks: TemplateTask[] }) {
 function TaskEditor({
   rows,
   skillOptions,
+  taskTypes,
   onChange,
   onAdd,
   onRemove,
@@ -555,6 +560,7 @@ function TaskEditor({
 }: {
   rows: DraftRow[];
   skillOptions: { value: string; label: string }[];
+  taskTypes: string[];
   onChange: (key: string, patch: Partial<DraftRow>) => void;
   onAdd: () => void;
   onRemove: (key: string) => void;
@@ -605,11 +611,18 @@ function TaskEditor({
                   />
                 </td>
                 <td className="px-2 py-1">
-                  <input
-                    className="input px-2 py-1 text-xs"
+                  <select
+                    className="input px-1.5 py-1 text-xs"
                     value={row.task_type}
                     onChange={(e) => onChange(row.key, { task_type: e.target.value })}
-                  />
+                  >
+                    <option value="">Choose...</option>
+                    {taskTypes.map((tt) => (
+                      <option key={tt} value={tt}>
+                        {tt}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-2 py-1">
                   <select
@@ -758,12 +771,14 @@ function NewTemplateModal({
   onClose,
   products,
   families,
+  releaseTypes,
   mutation,
 }: {
   open: boolean;
   onClose: () => void;
   products: { id: string; name: string }[];
   families: { id: string; name: string }[];
+  releaseTypes: string[];
   mutation: ReturnType<typeof useCreateTemplate>;
 }) {
   const [form, setForm] = useState({
@@ -845,11 +860,12 @@ function NewTemplateModal({
           required
           hint="Releases of this type will match this template."
         >
-          <TextInput
+          <Select
             id="ttype"
             value={form.release_type}
             onChange={(e) => setForm((f) => ({ ...f, release_type: e.target.value }))}
-            placeholder="Mechanical Design"
+            placeholder="Choose a release type"
+            options={releaseTypes.map((v) => ({ value: v, label: v }))}
           />
         </Field>
         <Field

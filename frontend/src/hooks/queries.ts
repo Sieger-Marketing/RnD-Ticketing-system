@@ -503,10 +503,18 @@ export function useReviews(params?: Params) {
   });
 }
 
-export function useReviewQueue() {
+/**
+ * The caller's own review queue.
+ *
+ * Gated on review.perform, which a Director and a Designer do not hold, so the
+ * caller passes `enabled: false` rather than firing a request that can only
+ * 403.
+ */
+export function useReviewQueue(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: keys.reviewQueue(),
     queryFn: () => get<Review[]>("/api/reviews/queue"),
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -543,6 +551,33 @@ export function useRevisions(params?: Params) {
   return useQuery({
     queryKey: keys.revisions(params),
     queryFn: () => get<Page<Revision>>("/api/revisions", params),
+  });
+}
+
+/**
+ * Every configured vocabulary a form needs, in one authenticated call.
+ *
+ * Screens populate their selects from this rather than hardcoding values. The
+ * lists are runtime-editable and nothing server-side rejects an unknown
+ * string, so an invented value does not error -- it silently drifts. For a
+ * revision category that is worse than drift: accountability_for() falls back
+ * to "Controllable", booking the rework against the team that raised it.
+ */
+export interface Vocabularies {
+  delay_reasons: { value: string; accountability: string }[];
+  revision_categories: { value: string; accountability: string }[];
+  task_types: string[];
+  release_types: string[];
+  project_types: string[];
+  require_delay_reason: boolean;
+  capacity_thresholds: Record<string, number>;
+}
+
+export function useVocabularies() {
+  return useQuery({
+    queryKey: ["vocabularies"],
+    queryFn: () => get<Vocabularies>("/api/meta/vocabularies"),
+    staleTime: 10 * 60_000,
   });
 }
 
@@ -696,6 +731,7 @@ export function useUpdateSetting() {
       // The vocabularies are cached for ten minutes; without this an edited
       // delay-reason list keeps offering values that no longer exist.
       qc.invalidateQueries({ queryKey: ["delay-reasons"] });
+      qc.invalidateQueries({ queryKey: ["vocabularies"] });
       qc.invalidateQueries({ queryKey: ["revision-categories"] });
       invalidateWorkflow(qc);
     },

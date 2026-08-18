@@ -3,7 +3,13 @@ import { useState } from "react";
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import { Spinner } from "@/components/ui/primitives";
-import { useCreateProject, useCustomers, useProducts, useUsers } from "@/hooks/queries";
+import {
+  useCreateProject,
+  useCustomers,
+  useProducts,
+  useUsers,
+  useVocabularies,
+} from "@/hooks/queries";
 import { PRIORITIES, toOptions } from "@/lib/vocab";
 import type { ProjectDetail } from "@/types/api";
 
@@ -39,6 +45,7 @@ export function ProjectCreateModal({
   const { data: customers } = useCustomers();
   const { data: products } = useProducts();
   const { data: managers } = useUsers({ role: "Design Manager" });
+  const { data: vocab } = useVocabularies();
 
   const set = (key: keyof typeof EMPTY) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -139,11 +146,15 @@ export function ProjectCreateModal({
           </Field>
 
           <Field label="Project type" htmlFor="project_type">
-            <TextInput
+            <Select
               id="project_type"
               value={form.project_type}
               onChange={(e) => set("project_type")(e.target.value)}
-              placeholder="New Build, Retrofit, Modification"
+              placeholder="Choose a project type"
+              options={(vocab?.project_types ?? []).map((v) => ({
+                value: v,
+                label: v,
+              }))}
             />
           </Field>
 

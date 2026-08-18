@@ -520,3 +520,88 @@ class TestAssignmentBoard:
             "headroom_hours",
         ):
             assert field in row, f"assignment board is missing {field}"
+
+
+class TestVocabularyReachability:
+    """A role must be able to read the values the API demands of it.
+
+    This has been the most persistent defect class in the project: an endpoint
+    requires a value from a configured list, the list sits behind an admin
+    permission, and the role being asked for it cannot read it. The form then
+    cannot satisfy its own validation and the user has no way forward.
+    """
+
+    def test_every_role_can_read_the_workflow_vocabularies(
+        self, director, manager, lead, designer
+    ):
+        for actor in (director, manager, lead, designer):
+            response = actor.get("/api/meta/vocabularies")
+            assert response.status_code == 200, (
+                f"{actor.user['email']} cannot read the vocabularies it must "
+                "supply values from"
+            )
+            body = response.json()
+            for field in (
+                "delay_reasons",
+                "revision_categories",
+                "task_types",
+                "release_types",
+                "project_types",
+                "require_delay_reason",
+            ):
+                assert field in body, f"vocabularies missing {field}"
+
+    def test_designer_still_cannot_read_admin_settings(self, designer):
+        """Readable vocabularies must not mean readable configuration."""
+        assert designer.get("/api/settings").status_code == 403
+
+    def test_designer_still_cannot_edit_vocabularies(self, designer):
+        assert (
+            designer.put(
+                "/api/settings/workflow.task_types", json={"value": ["Anything"]}
+            ).status_code
+            == 403
+        )
+
+
+class TestSettingShapeValidation:
+    """Malformed vocabularies break the designer's submit path, not the admin's.
+
+    workflow.delay_reasons is read as a list of objects. Saved as a list of
+    strings it raises TypeError deep inside the overdue-submit rule, so the
+    person who sees the 500 is never the person who caused it.
+    """
+
+    def test_delay_reasons_must_be_objects(self, manager):
+        response = manager.put(
+            "/api/settings/workflow.delay_reasons",
+            json={"value": ["Customer Change", "Resource Constraint"]},
+        )
+        assert response.status_code == 422
+
+    def test_delay_reasons_need_a_valid_accountability(self, manager):
+        response = manager.put(
+            "/api/settings/workflow.delay_reasons",
+            json={"value": [{"value": "Customer Change", "accountability": "Maybe"}]},
+        )
+        assert response.status_code == 422
+
+    def test_task_types_must_be_strings(self, manager):
+        response = manager.put(
+            "/api/settings/workflow.task_types",
+            json={"value": [{"value": "Drawing"}]},
+        )
+        assert response.status_code == 422
+
+    def test_a_valid_vocabulary_still_saves(self, manager):
+        original = manager.get("/api/settings/workflow.task_types").json()["value"]
+        try:
+            response = manager.put(
+                "/api/settings/workflow.task_types",
+                json={"value": ["Drawing", "Calculation", "Checking"]},
+            )
+            assert response.status_code == 200
+        finally:
+            manager.put(
+                "/api/settings/workflow.task_types", json={"value": original}
+            )

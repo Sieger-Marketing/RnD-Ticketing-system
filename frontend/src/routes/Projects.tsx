@@ -291,14 +291,20 @@ export default function Projects() {
         )}
       </div>
 
-      <ProjectCreateModal
-        open={creating}
-        onClose={() => setCreating(false)}
-        onCreated={(project) => {
-          setCreating(false);
-          navigate(`/projects/${project.id}`);
-        }}
-      />
+      {/* Mounted only while open. Left mounted, its lookups (customers,
+          products, design managers) fire on every visit to this list, and the
+          users lookup 403s for anyone without user.view -- a request that can
+          never succeed, for a dialog they cannot open. */}
+      {creating && (
+        <ProjectCreateModal
+          open
+          onClose={() => setCreating(false)}
+          onCreated={(project) => {
+            setCreating(false);
+            navigate(`/projects/${project.id}`);
+          }}
+        />
+      )}
     </>
   );
 }

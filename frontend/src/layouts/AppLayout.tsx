@@ -9,6 +9,8 @@
 import clsx from "clsx";
 import {
   Bell,
+  ClipboardCheck,
+  Clock,
   ChevronRight,
   FileStack,
   FolderKanban,
@@ -18,13 +20,21 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  RotateCcw,
+  Square,
   X,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { Avatar, Spinner } from "@/components/ui/primitives";
-import { useMarkAllRead, useNotifications, useUnreadCount } from "@/hooks/queries";
+import {
+  useMarkAllRead,
+  useNotifications,
+  useRunningTimer,
+  useStopTimer,
+  useUnreadCount,
+} from "@/hooks/queries";
 import { relative } from "@/lib/format";
 import { useAuth } from "@/store/auth";
 
@@ -87,6 +97,21 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         to: "/kanban",
         label: "Task Board",
         icon: <LayoutGrid className="h-4 w-4" />,
+      },
+      {
+        to: "/reviews",
+        label: "Reviews",
+        icon: <ClipboardCheck className="h-4 w-4" />,
+      },
+      {
+        to: "/revisions",
+        label: "Revisions",
+        icon: <RotateCcw className="h-4 w-4" />,
+      },
+      {
+        to: "/timesheet",
+        label: "Timesheet",
+        icon: <Clock className="h-4 w-4" />,
       },
       {
         to: "/templates",
@@ -192,6 +217,61 @@ function NotificationBell() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * The running timer, visible from every screen.
+ *
+ * A timer left running quietly inflates a task's actual hours and skews its
+ * efficiency, so it should never be possible to forget one is going. Elapsed
+ * time is computed client-side because a running entry reports hours = 0 until
+ * it is stopped, and nothing pushes updates.
+ */
+function RunningTimer() {
+  const { data } = useRunningTimer();
+  const stop = useStopTimer();
+  const [, tick] = useState(0);
+
+  useEffect(() => {
+    if (!data) return;
+    const timer = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [data]);
+
+  if (!data) return null;
+
+  const seconds = Math.max(
+    0,
+    (Date.now() - new Date(data.started_at ?? Date.now()).getTime()) / 1000,
+  );
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-brand-200 bg-brand-50 px-2 py-1">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-600" />
+      <Link
+        to={`/tasks/${data.task_id}`}
+        className="max-w-[9rem] truncate text-xs text-brand-700 hover:underline"
+        title={data.task_name ?? undefined}
+      >
+        {data.task_code}
+      </Link>
+      <span className="font-mono text-xs tabular text-brand-700">
+        {h}:{String(m).padStart(2, "0")}
+      </span>
+      <button
+        type="button"
+        className="btn-ghost px-1 py-0.5"
+        onClick={() => stop.mutate()}
+        disabled={stop.isPending}
+        aria-label="Stop the running timer"
+        title="Stop timer"
+      >
+        {stop.isPending ? <Spinner /> : <Square className="h-3 w-3 text-rag-red" />}
+      </button>
     </div>
   );
 }
@@ -338,7 +418,8 @@ export default function AppLayout() {
             </button>
             <Breadcrumbs />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            <RunningTimer />
             <NotificationBell />
           </div>
         </header>
