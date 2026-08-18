@@ -19,7 +19,7 @@ PROJECT → DESIGN RELEASE → PRODUCT TEMPLATE → TASK → EXECUTION
 | KPI / capacity / delay / health engines | Complete, config-driven |
 | Demo data | 15 users, 10 projects, 26 releases, 160 tasks, 340 time entries |
 | Automated tests | 99 passing, including the full acceptance scenario |
-| Frontend | Not started |
+| Frontend | Stage 1: auth, app shell, role-based routing, all four dashboards |
 
 ## Requirements
 
@@ -71,6 +71,19 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 * API docs: <http://127.0.0.1:8000/docs>
 * Health: <http://127.0.0.1:8000/health> and `/health/db`
 
+### 5. Run the frontend
+
+In a second terminal, with the API already running:
+
+```bash
+cd frontend && cp .env.example .env && npm install && npm run dev
+```
+
+Open <http://localhost:5173>. Vite proxies `/api` to the backend, so the
+browser makes same-origin requests and there is no CORS preflight in
+development. `VITE_API_BASE_URL` stays empty unless the API is deployed to a
+different origin.
+
 ## Demo accounts
 
 All seeded accounts share the password in `SEED_DEFAULT_PASSWORD` (default
@@ -81,10 +94,15 @@ All seeded accounts share the password in `SEED_DEFAULT_PASSWORD` (default
 | Director | `rajesh.varma@designops.dev` | Executive dashboard |
 | Design Manager | `lakshmi.subramanian@designops.dev` | Manager dashboard |
 | Team Lead | `suresh.balan@designops.dev` | Team lead dashboard |
-| Designer | `arun.prakash@designops.dev` | My work |
+| Designer | `sandeep.rao@designops.dev` | My work |
 
 Team Leads are also `nithya.raghavan@` and `imran.sheikh@`; there are ten
 designers. Every address follows `firstname.lastname@designops.dev`.
+
+`sandeep.rao@` is the designer worth signing in as — the seed leaves them
+holding open, overdue and blocked work, so the personal workspace has
+something to show. Several other designers have finished everything assigned
+to them and will show an empty queue, which is realistic but a dull demo.
 
 ## Tests
 
@@ -117,7 +135,30 @@ backend/
     seed/          bootstrap and demo data
   alembic/         migrations
   tests/
+
+frontend/
+  src/
+    lib/           HTTP client, error unwrapping, formatting
+    store/         session state
+    types/         API contract types
+    hooks/         one data hook per endpoint
+    components/    shared UI, status vocabulary, tables, charts
+    layouts/       application shell
+    routes/        screens
 ```
+
+### Frontend conventions
+
+* `types/api.ts` is the contract. If a field there disagrees with the API, the
+  screen using it is wrong.
+* Nothing in the frontend computes a metric. Every number arrives already
+  calculated, which is what keeps one definition of "efficiency" in the system.
+* `null` from the API means "not enough data", not zero. The formatters render
+  it as an em dash so a dashboard never claims 0% efficiency for work nobody
+  has started.
+* Route guards and nav filtering mirror the backend's permissions. They are a
+  usability measure only — the API enforces authorisation regardless of what
+  the client renders.
 
 ### Where the rules live
 

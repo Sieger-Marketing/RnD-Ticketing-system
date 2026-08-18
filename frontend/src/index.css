@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-ink-50 text-ink-900 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "tnum";
+  }
+
+  /* Tabular figures everywhere numbers are compared down a column, which is
+     most of this application. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-1 ring-offset-white;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-ink-200 bg-white shadow-card;
+  }
+
+  .card-header {
+    @apply flex items-center justify-between gap-3 border-b border-ink-200 px-4 py-3;
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-ink-900;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm
+      text-ink-900 placeholder:text-ink-400
+      focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
+      disabled:cursor-not-allowed disabled:bg-ink-100;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-medium text-ink-700;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2
+      text-sm font-medium transition-colors
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+  }
+
+  .btn-secondary {
+    @apply btn border border-ink-300 bg-white text-ink-800 hover:bg-ink-50;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900;
+  }
+
+  .btn-danger {
+    @apply btn bg-rag-red text-white hover:bg-red-700;
+  }
+
+  .th {
+    @apply whitespace-nowrap px-3 py-2 text-left text-2xs font-semibold uppercase
+      tracking-wide text-ink-500;
+  }
+
+  .td {
+    @apply whitespace-nowrap px-3 py-2 text-sm text-ink-800;
+  }
+}

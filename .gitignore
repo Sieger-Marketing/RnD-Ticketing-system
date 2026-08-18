@@ -25,3 +25,6 @@ storage/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local dev logs
+*.log
