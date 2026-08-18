@@ -14,6 +14,7 @@ import {
   FolderKanban,
   Layers,
   LayoutDashboard,
+  LayoutGrid,
   ListChecks,
   LogOut,
   Menu,
@@ -76,6 +77,16 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         to: "/releases",
         label: "Design Releases",
         icon: <Layers className="h-4 w-4" />,
+      },
+      {
+        to: "/tasks",
+        label: "Tasks",
+        icon: <ListChecks className="h-4 w-4" />,
+      },
+      {
+        to: "/kanban",
+        label: "Task Board",
+        icon: <LayoutGrid className="h-4 w-4" />,
       },
       {
         to: "/templates",

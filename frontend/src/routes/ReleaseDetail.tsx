@@ -5,7 +5,7 @@
 
 import { AlertTriangle, ArrowLeft, Check, Sparkles, UserPlus } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { TaskTable } from "@/components/TaskTable";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
@@ -40,6 +40,7 @@ import { P, useAuth } from "@/store/auth";
 
 export default function ReleaseDetail() {
   const { releaseId = "" } = useParams<{ releaseId: string }>();
+  const navigate = useNavigate();
   const { can, user } = useAuth();
 
   const [assigning, setAssigning] = useState(false);
@@ -319,6 +320,7 @@ export default function ReleaseDetail() {
                 "hours",
                 "progress",
               ]}
+              onSelect={(task) => navigate(`/tasks/${task.id}`)}
               emptyTitle="No tasks in this release"
               emptyDescription="Generate them from a template, or add them individually."
             />

@@ -467,3 +467,56 @@ class TestDerivedDates:
             if r.actual_start and r.actual_end and r.actual_start > r.actual_end
         ]
         assert not offenders, f"releases starting after they end: {offenders}"
+
+
+class TestAssignmentBoard:
+    """Spec section 13: the board has to make "who is free" answerable.
+
+    The failure this guards against is subtle. Deriving the capacity window
+    from the task's own planned dates looks reasonable until the task has a
+    two-day window: every candidate then has 16 hours of capacity, anyone
+    carrying a normal workload reads as 300% utilised, and the bands stop
+    distinguishing between a free designer and a drowning one.
+    """
+
+    def test_window_is_a_planning_horizon_not_the_task_window(self, lead, sandbox):
+        task = sandbox["tasks"][0]
+        rows = lead.get(
+            "/api/resources/assignment-board", params={"task_id": task["id"]}
+        ).json()
+
+        assert rows, "the board must offer candidates"
+        # Two working weeks at eight hours is the smallest horizon that lets a
+        # normal workload land somewhere other than "overloaded".
+        assert all(r["available_hours"] >= 40 for r in rows), (
+            "capacity window collapsed to the task's own dates: "
+            f"{[(r['full_name'], r['available_hours']) for r in rows]}"
+        )
+
+    def test_bands_still_discriminate(self, lead, sandbox):
+        """Not everyone should land in the same band."""
+        rows = lead.get(
+            "/api/resources/assignment-board",
+            params={"task_id": sandbox["tasks"][0]["id"]},
+        ).json()
+        bands = {r["utilization_band"] for r in rows}
+        assert bands != {"Overloaded"}, "every candidate reads as overloaded"
+
+    def test_candidates_carry_what_a_lead_needs_to_decide(self, lead, sandbox):
+        rows = lead.get(
+            "/api/resources/assignment-board",
+            params={"task_id": sandbox["tasks"][0]["id"]},
+        ).json()
+        row = rows[0]
+        for field in (
+            "full_name",
+            "open_tasks",
+            "allocated_hours",
+            "available_hours",
+            "utilization_percent",
+            "utilization_band",
+            "skills",
+            "next_deadline",
+            "headroom_hours",
+        ):
+            assert field in row, f"assignment board is missing {field}"

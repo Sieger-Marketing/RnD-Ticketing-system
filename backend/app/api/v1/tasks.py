@@ -49,6 +49,7 @@ from app.services import (
     code_service,
     kpi,
     rollup_service,
+    settings_service,
     task_service,
 )
 
@@ -319,6 +320,20 @@ def my_work(
         .all()
     )
     return [task_summary(t) for t in rows]
+
+
+@router.get("/delay-reasons")
+def delay_reasons(
+    db: Session = Depends(get_db), _: User = Depends(get_current_user)
+) -> list[dict]:
+    """Configured delay reasons and whether each counts as controllable.
+
+    Open to any authenticated user, like the revision categories: blocking a
+    task or submitting a late one requires choosing from this list, so gating
+    it behind SETTINGS_VIEW would leave a designer unable to complete a form
+    the API insists they fill in. Editing the list is still admin-only.
+    """
+    return settings_service.get_setting(db, "workflow.delay_reasons")
 
 
 @router.post("", response_model=TaskDetail, status_code=201)

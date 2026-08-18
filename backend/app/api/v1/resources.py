@@ -155,8 +155,17 @@ def assignment_board(
         if task is None:
             raise NotFoundError("Task not found.")
         required_skill_id = required_skill_id or task.required_skill_id
-        start = start or task.planned_start
-        end = end or task.planned_end
+
+        # The task's own window is the wrong denominator for "who is free".
+        # A two-day task window gives everyone 16 hours of capacity, so anyone
+        # carrying a normal workload reads as 300% overloaded and the bands
+        # stop distinguishing anyone. Measure from today (past windows are
+        # gone) out to at least the standard planning horizon, extending to the
+        # task's deadline when that is further away.
+        today = date.today()
+        start = start or max(task.planned_start or today, today)
+        horizon = start + timedelta(days=DEFAULT_WINDOW_DAYS)
+        end = end or max(task.planned_end or horizon, horizon)
 
     start, end = _window(start, end)
     candidates = _candidate_users(db, scope)

@@ -20,8 +20,11 @@ import NotFound from "@/routes/NotFound";
 import ProjectDetail from "@/routes/ProjectDetail";
 import Projects from "@/routes/Projects";
 import ReleaseDetail from "@/routes/ReleaseDetail";
+import Kanban from "@/routes/Kanban";
 import Releases from "@/routes/Releases";
 import TeamLeadDashboard from "@/routes/TeamLeadDashboard";
+import TaskDetail from "@/routes/TaskDetail";
+import Tasks from "@/routes/Tasks";
 import Templates from "@/routes/Templates";
 import { useAuth } from "@/store/auth";
 
@@ -108,6 +111,9 @@ export default function App() {
         <Route path="/projects/:projectId" element={<ProjectDetail />} />
         <Route path="/releases" element={<Releases />} />
         <Route path="/releases/:releaseId" element={<ReleaseDetail />} />
+        <Route path="/tasks" element={<Tasks />} />
+        <Route path="/tasks/:taskId" element={<TaskDetail />} />
+        <Route path="/kanban" element={<Kanban />} />
 
         <Route
           path="/templates"

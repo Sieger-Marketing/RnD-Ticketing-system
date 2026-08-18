@@ -18,8 +18,8 @@ PROJECT → DESIGN RELEASE → PRODUCT TEMPLATE → TASK → EXECUTION
 | Core workflow API | 114 endpoints, OpenAPI documented |
 | KPI / capacity / delay / health engines | Complete, config-driven |
 | Demo data | 15 users, 10 projects, 26 releases, 160 tasks, 340 time entries |
-| Automated tests | 101 passing, including the full acceptance scenario |
-| Frontend | Stages 1-2: dashboards, projects, releases, template library |
+| Automated tests | 104 passing, including the full acceptance scenario |
+| Frontend | Stages 1-3: dashboards, projects, releases, templates, tasks, Kanban |
 
 ## Requirements
 

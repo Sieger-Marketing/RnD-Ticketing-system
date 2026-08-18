@@ -86,6 +86,7 @@ function invalidateWorkflow(qc: ReturnType<typeof useQueryClient>) {
     "projects", "project", "releases", "release", "tasks", "task", "kanban",
     "my-work", "dashboard", "analytics", "capacity", "assignment-board",
     "heatmap", "reviews", "review-queue", "revisions", "time-entries",
+    "running-timer",
   ]) {
     qc.invalidateQueries({ queryKey: [key] });
   }
@@ -302,6 +303,28 @@ export function useChangeTaskStatus(id: UUID) {
   });
 }
 
+/**
+ * Status change where the task is part of the payload rather than baked into
+ * the hook. The board needs this: a drop knows which card moved, but the
+ * component's state has not committed yet, so a hook keyed on state would
+ * mutate whichever task was selected previously.
+ */
+export function useMoveTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      ...body
+    }: {
+      taskId: UUID;
+      status: string;
+      note?: string;
+      delay_reason?: string;
+    }) => post<TaskDetail>(`/api/tasks/${taskId}/status`, body),
+    onSuccess: () => invalidateWorkflow(qc),
+  });
+}
+
 export function useAddDependency(taskId: UUID) {
   const qc = useQueryClient();
   return useMutation({
@@ -511,6 +534,21 @@ export function useRevisions(params?: Params) {
   return useQuery({
     queryKey: keys.revisions(params),
     queryFn: () => get<Page<Revision>>("/api/revisions", params),
+  });
+}
+
+/**
+ * Delay reasons, readable by anyone. Blocking a task or submitting a late one
+ * requires choosing from this list, so it is deliberately not behind the
+ * settings permission -- otherwise a designer could not complete a form the
+ * API insists they fill in.
+ */
+export function useDelayReasons() {
+  return useQuery({
+    queryKey: ["delay-reasons"],
+    queryFn: () =>
+      get<{ value: string; accountability: string }[]>("/api/tasks/delay-reasons"),
+    staleTime: 10 * 60_000,
   });
 }
 
