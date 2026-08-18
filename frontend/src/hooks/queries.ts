@@ -27,6 +27,7 @@ import type {
   Notification,
   Page,
   Product,
+  ProductFamily,
   ProjectDetail,
   ProjectSummary,
   ReleaseDetail,
@@ -86,7 +87,7 @@ function invalidateWorkflow(qc: ReturnType<typeof useQueryClient>) {
     "projects", "project", "releases", "release", "tasks", "task", "kanban",
     "my-work", "dashboard", "analytics", "capacity", "assignment-board",
     "heatmap", "reviews", "review-queue", "revisions", "time-entries",
-    "running-timer",
+    "running-timer", "notifications",
   ]) {
     qc.invalidateQueries({ queryKey: [key] });
   }
@@ -366,6 +367,14 @@ export function useProducts() {
   return useQuery({
     queryKey: keys.products(),
     queryFn: () => get<Product[]>("/api/products"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useProductFamilies() {
+  return useQuery({
+    queryKey: ["product-families"],
+    queryFn: () => get<ProductFamily[]>("/api/product-families"),
     staleTime: 5 * 60_000,
   });
 }
@@ -684,6 +693,10 @@ export function useUpdateSetting() {
       put(`/api/settings/${key}`, { value }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["settings"] });
+      // The vocabularies are cached for ten minutes; without this an edited
+      // delay-reason list keeps offering values that no longer exist.
+      qc.invalidateQueries({ queryKey: ["delay-reasons"] });
+      qc.invalidateQueries({ queryKey: ["revision-categories"] });
       invalidateWorkflow(qc);
     },
   });
@@ -693,12 +706,24 @@ export function useUpdateSetting() {
 // Template authoring
 // ---------------------------------------------------------------------------
 
+/**
+ * Publishing or editing a template changes more than the template list: the
+ * per-release suggestion and the create-release matcher both read only
+ * published versions, so a freshly published template must invalidate them or
+ * a release keeps reporting "no template matches" until the cache goes stale.
+ */
+function invalidateTemplates(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["templates"] });
+  qc.invalidateQueries({ queryKey: ["template-match"] });
+  qc.invalidateQueries({ queryKey: ["release"] });
+}
+
 export function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       post<DesignTemplate>("/api/templates", body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+    onSuccess: () => invalidateTemplates(qc),
   });
 }
 
@@ -707,7 +732,7 @@ export function useCreateDraft(templateId: UUID) {
   return useMutation({
     mutationFn: (changeNote: string) =>
       post(`/api/templates/${templateId}/versions`, { change_note: changeNote }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+    onSuccess: () => invalidateTemplates(qc),
   });
 }
 
@@ -716,7 +741,7 @@ export function useSaveVersionTasks(versionId: UUID) {
   return useMutation({
     mutationFn: (tasks: Record<string, unknown>[]) =>
       put(`/api/templates/versions/${versionId}/tasks`, tasks),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+    onSuccess: () => invalidateTemplates(qc),
   });
 }
 
@@ -725,6 +750,6 @@ export function usePublishVersion() {
   return useMutation({
     mutationFn: (versionId: UUID) =>
       post(`/api/templates/versions/${versionId}/publish`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["templates"] }),
+    onSuccess: () => invalidateTemplates(qc),
   });
 }

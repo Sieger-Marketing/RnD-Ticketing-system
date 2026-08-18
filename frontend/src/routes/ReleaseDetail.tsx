@@ -86,6 +86,10 @@ export default function ReleaseDetail() {
   const taskList = tasks.data ?? [];
   const isMyRelease = r.team_lead_id === user?.id;
   const canComplete = blockers.data?.can_complete_cleanly ?? false;
+  // Completing cleanly and overriding blockers are different permissions. A
+  // Team Lead holds the first but not the second, so offering them an override
+  // form they cannot submit wastes their time and loses what they typed.
+  const canOverride = can(P.releaseOverrideCompletion);
   const blockingTasks = blockers.data?.blocking_tasks ?? [];
   const isFinished = r.status === "Completed" || r.status === "Cancelled";
 
@@ -447,22 +451,24 @@ export default function ReleaseDetail() {
             >
               Cancel
             </button>
-            <button
-              type="button"
-              className={canComplete ? "btn-primary" : "btn-danger"}
-              onClick={() =>
-                complete.mutate(overrideReason || undefined, {
-                  onSuccess: () => setCompleting(false),
-                })
-              }
-              disabled={
-                complete.isPending ||
-                (!canComplete && overrideReason.trim().length < 5)
-              }
-            >
-              {complete.isPending && <Spinner />}
-              {canComplete ? "Complete release" : "Override and complete"}
-            </button>
+            {(canComplete || canOverride) && (
+              <button
+                type="button"
+                className={canComplete ? "btn-primary" : "btn-danger"}
+                onClick={() =>
+                  complete.mutate(overrideReason || undefined, {
+                    onSuccess: () => setCompleting(false),
+                  })
+                }
+                disabled={
+                  complete.isPending ||
+                  (!canComplete && overrideReason.trim().length < 5)
+                }
+              >
+                {complete.isPending && <Spinner />}
+                {canComplete ? "Complete release" : "Override and complete"}
+              </button>
+            )}
           </>
         }
       >
@@ -474,6 +480,24 @@ export default function ReleaseDetail() {
               Every mandatory task is complete. Finishing the release will roll its
               hours and completion up to the project.
             </InlineAlert>
+          ) : !canOverride ? (
+            <>
+              <InlineAlert tone="warn">
+                {blockingTasks.length} mandatory task
+                {blockingTasks.length === 1 ? " is" : "s are"} still open. Only a
+                Design Manager can override that, so this release cannot be closed
+                from here yet — finish the tasks below, or ask your Design Manager
+                to override.
+              </InlineAlert>
+              <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md bg-ink-50 p-2">
+                {blockingTasks.map((task) => (
+                  <li key={task.code} className="text-2xs text-ink-700">
+                    <span className="font-mono">{task.code}</span> {task.name} —{" "}
+                    {task.status}
+                  </li>
+                ))}
+              </ul>
+            </>
           ) : (
             <>
               <InlineAlert tone="warn">

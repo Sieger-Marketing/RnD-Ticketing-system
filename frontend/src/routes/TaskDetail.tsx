@@ -45,6 +45,14 @@ import { DASH, dateTime, durationHours, hours, percent, shortDate, variance } fr
 import { P, useAuth } from "@/store/auth";
 import type { TaskStatus } from "@/types/api";
 
+/**
+ * Moves the API refuses without a delay reason, mirroring the rule in
+ * task_service: an overdue task cannot reach these states unattributed. The UI
+ * asks first rather than letting the move fail and then offering no way to fix
+ * it.
+ */
+const NEEDS_DELAY_REASON: TaskStatus[] = ["Completed", "Submitted for Review"];
+
 /** Transitions worth a dedicated button, in the order a designer meets them. */
 const PRIMARY_ACTIONS: { status: TaskStatus; label: string; icon?: ReactNode }[] = [
   { status: "In Progress", label: "Start work", icon: <Play className="h-3.5 w-3.5" /> },
@@ -70,6 +78,8 @@ export default function TaskDetail() {
   const [submitNote, setSubmitNote] = useState("");
   const [submitDelayReason, setSubmitDelayReason] = useState("");
   const [actionError, setActionError] = useState<unknown>(null);
+  const [completing, setCompleting] = useState<TaskStatus | null>(null);
+  const [completeReason, setCompleteReason] = useState("");
 
   const task = useTask(taskId);
   const entries = useTimeEntries({ task_id: taskId, page_size: 50 });
@@ -114,6 +124,8 @@ export default function TaskDetail() {
   const isMine = t.assigned_to_id === user?.id;
   const timerOnThisTask = running.data?.task_id === t.id;
   const allowed = new Set(t.allowed_transitions);
+  // Already-stated reasons satisfy the rule, so do not ask twice.
+  const needsReason = t.is_overdue && !t.delay_reason;
 
   const doMove = (status: TaskStatus, body: Record<string, string> = {}) => {
     setActionError(null);
@@ -124,10 +136,31 @@ export default function TaskDetail() {
           setBlocking(false);
           setBlockerNote("");
           setDelayReason("");
+          setCompleting(null);
+          setCompleteReason("");
         },
         onError: setActionError,
       },
     );
+  };
+
+  /**
+   * Route a move through whatever it needs first. Blocking needs a written
+   * cause; an overdue task reaching a terminal state needs a delay reason the
+   * API will otherwise reject it for.
+   */
+  const requestMove = (status: TaskStatus) => {
+    setActionError(null);
+    if (status === "Blocked") {
+      setBlocking(true);
+      return;
+    }
+    if (needsReason && NEEDS_DELAY_REASON.includes(status)) {
+      setCompleteReason("");
+      setCompleting(status);
+      return;
+    }
+    doMove(status);
   };
 
   return (
@@ -201,9 +234,7 @@ export default function TaskDetail() {
                 key={action.status}
                 type="button"
                 className={action.status === "Blocked" ? "btn-secondary" : "btn-primary"}
-                onClick={() =>
-                  action.status === "Blocked" ? setBlocking(true) : doMove(action.status)
-                }
+                onClick={() => requestMove(action.status)}
                 disabled={move.isPending}
               >
                 {action.icon}
@@ -495,9 +526,7 @@ export default function TaskDetail() {
                     key={status}
                     type="button"
                     className="rounded-full border border-ink-300 px-2 py-0.5 text-2xs text-ink-700 hover:bg-ink-100 disabled:opacity-50"
-                    onClick={() =>
-                      status === "Blocked" ? setBlocking(true) : doMove(status)
-                    }
+                    onClick={() => requestMove(status)}
                     disabled={move.isPending}
                   >
                     {status}
@@ -731,6 +760,53 @@ export default function TaskDetail() {
         </div>
       </Modal>
 
+      {/* Terminal move on an overdue task */}
+      <Modal
+        open={completing !== null}
+        onClose={() => setCompleting(null)}
+        title={`Move to ${completing ?? ""}`}
+        description="This task is past its planned end date."
+        footer={
+          <>
+            <button type="button" className="btn-secondary" onClick={() => setCompleting(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() =>
+                completing && doMove(completing, { delay_reason: completeReason })
+              }
+              disabled={move.isPending || !completeReason}
+            >
+              {move.isPending && <Spinner />}
+              Confirm
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <FormError error={actionError} />
+          <InlineAlert tone="warn">
+            It finished {t.delay_days} day{t.delay_days === 1 ? "" : "s"} late. The
+            reason is what separates a delay the team could control from one it
+            could not, so the analytics stay honest.
+          </InlineAlert>
+          <Field label="Delay reason" htmlFor="complete_delay" required>
+            <Select
+              id="complete_delay"
+              value={completeReason}
+              onChange={(e) => setCompleteReason(e.target.value)}
+              placeholder="Choose a reason"
+              options={delayReasons.map((r) => ({
+                value: r.value,
+                label: `${r.value} (${r.accountability.toLowerCase()})`,
+              }))}
+            />
+          </Field>
+        </div>
+      </Modal>
+
       {/* Submit for review */}
       <Modal
         open={submitting}
@@ -755,9 +831,7 @@ export default function TaskDetail() {
                   { onSuccess: () => setSubmitting(false) },
                 )
               }
-              disabled={
-                submitReview.isPending || (t.is_overdue && !submitDelayReason)
-              }
+              disabled={submitReview.isPending || (needsReason && !submitDelayReason)}
             >
               {submitReview.isPending && <Spinner />}
               Submit
@@ -768,7 +842,7 @@ export default function TaskDetail() {
         <div className="space-y-3">
           <FormError error={submitReview.error} />
 
-          {t.is_overdue && (
+          {needsReason && (
             <>
               <InlineAlert tone="warn">
                 This task passed its planned end date {t.delay_days} day

@@ -27,6 +27,7 @@ import {
   usePublishVersion,
   useSaveVersionTasks,
   useProducts,
+  useProductFamilies,
   useSkills,
   useTemplates,
 } from "@/hooks/queries";
@@ -79,6 +80,7 @@ export default function Templates() {
   } = useTemplates({ include_tasks: true });
   const { data: skills } = useSkills();
   const { data: products } = useProducts();
+  const { data: families } = useProductFamilies();
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
@@ -409,6 +411,7 @@ export default function Templates() {
         open={creatingTemplate}
         onClose={() => setCreatingTemplate(false)}
         products={products ?? []}
+        families={families ?? []}
         mutation={createTemplate}
       />
 
@@ -754,11 +757,13 @@ function NewTemplateModal({
   open,
   onClose,
   products,
+  families,
   mutation,
 }: {
   open: boolean;
   onClose: () => void;
   products: { id: string; name: string }[];
+  families: { id: string; name: string }[];
   mutation: ReturnType<typeof useCreateTemplate>;
 }) {
   const [form, setForm] = useState({
@@ -766,11 +771,22 @@ function NewTemplateModal({
     release_type: "",
     description: "",
     product_id: "",
+    product_family_id: "",
   });
+
+  // The API requires one of the two; the form says so rather than letting the
+  // request 422 after the Create button looked enabled.
+  const hasTarget = Boolean(form.product_id || form.product_family_id);
 
   const close = () => {
     mutation.reset();
-    setForm({ name: "", release_type: "", description: "", product_id: "" });
+    setForm({
+      name: "",
+      release_type: "",
+      description: "",
+      product_id: "",
+      product_family_id: "",
+    });
     onClose();
   };
 
@@ -795,12 +811,15 @@ function NewTemplateModal({
               };
               if (form.description) payload.description = form.description;
               if (form.product_id) payload.product_id = form.product_id;
+              if (form.product_family_id)
+                payload.product_family_id = form.product_family_id;
               mutation.mutate(payload, { onSuccess: close });
             }}
             disabled={
               mutation.isPending ||
               form.name.trim() === "" ||
-              form.release_type.trim() === ""
+              form.release_type.trim() === "" ||
+              !hasTarget
             }
           >
             {mutation.isPending && <Spinner />}
@@ -836,14 +855,33 @@ function NewTemplateModal({
         <Field
           label="Product"
           htmlFor="tproduct"
-          hint="Leave blank to match any product with this release type."
+          hint="Pick a product for a template that applies to just that product."
         >
           <Select
             id="tproduct"
             value={form.product_id}
-            onChange={(e) => setForm((f) => ({ ...f, product_id: e.target.value }))}
-            placeholder="Any product"
+            onChange={(e) =>
+              setForm((f) => ({ ...f, product_id: e.target.value, product_family_id: "" }))
+            }
+            placeholder="No specific product"
             options={products.map((p) => ({ value: p.id, label: p.name }))}
+          />
+        </Field>
+
+        <Field
+          label="or Product family"
+          htmlFor="tfamily"
+          hint="Pick a family for a template shared across every product in it."
+          error={hasTarget ? undefined : "Choose a product or a product family."}
+        >
+          <Select
+            id="tfamily"
+            value={form.product_family_id}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, product_family_id: e.target.value, product_id: "" }))
+            }
+            placeholder="No family"
+            options={families.map((f) => ({ value: f.id, label: f.name }))}
           />
         </Field>
         <Field label="Description" htmlFor="tdesc">

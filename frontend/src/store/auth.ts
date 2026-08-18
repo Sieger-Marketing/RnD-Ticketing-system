@@ -86,6 +86,7 @@ export const P = {
   releaseAssignLead: "release.assign_lead",
   releaseAccept: "release.accept",
   releaseComplete: "release.complete",
+  releaseOverrideCompletion: "release.override_completion",
   templateView: "template.view",
   templateManage: "template.manage",
   templateApply: "template.apply",

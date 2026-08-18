@@ -53,10 +53,19 @@ function RequirePermission({
   return <>{children}</>;
 }
 
-/** Sends a signed-in user to the dashboard their primary role implies. */
+/**
+ * Sends a signed-in user to the dashboard their primary role implies.
+ *
+ * home_route is "/" for a user with no role the server recognises, and "/"
+ * renders this component -- so redirecting blindly loops until React Router
+ * throws and the screen goes blank. A user with no usable role gets their
+ * personal queue and an honest message instead.
+ */
 function HomeRedirect() {
   const user = useAuth((s) => s.user);
-  return <Navigate to={user?.home_route ?? "/my-work"} replace />;
+  const target = user?.home_route;
+  if (!target || target === "/") return <Navigate to="/my-work" replace />;
+  return <Navigate to={target} replace />;
 }
 
 export default function App() {

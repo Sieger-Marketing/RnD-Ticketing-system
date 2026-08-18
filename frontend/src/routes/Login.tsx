@@ -17,7 +17,8 @@ export default function Login() {
 
   if (!initializing && user) {
     const from = (location.state as { from?: Location } | null)?.from?.pathname;
-    return <Navigate to={from ?? user.home_route} replace />;
+    const home = user.home_route && user.home_route !== "/" ? user.home_route : "/my-work";
+    return <Navigate to={from ?? home} replace />;
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -26,8 +27,14 @@ export default function Login() {
     setBusy(true);
     try {
       const signedIn = await signIn(email.trim(), password);
-      // Land on the dashboard the role implies, decided by the server.
-      navigate(signedIn.home_route, { replace: true });
+      // Land on the dashboard the role implies, decided by the server. "/"
+      // means the server had no route for this user's role; sending them there
+      // would bounce them straight back into HomeRedirect.
+      const target =
+        signedIn.home_route && signedIn.home_route !== "/"
+          ? signedIn.home_route
+          : "/my-work";
+      navigate(target, { replace: true });
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Sign-in failed. Please try again.",

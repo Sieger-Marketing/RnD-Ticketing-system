@@ -68,12 +68,39 @@ export function setUnauthenticatedHandler(handler: () => void): void {
   onUnauthenticated = handler;
 }
 
+/**
+ * Serialise query parameters the way FastAPI reads them.
+ *
+ * axios defaults to bracket notation for arrays -- `?status[]=Blocked`. FastAPI
+ * declares `status: list[str] = Query(None)` and reads the bare key, so a
+ * bracketed name is simply absent from its multidict: the parameter binds to
+ * None, the filter branch never runs, and the request still returns 200 with
+ * every row. Nothing errors, so a broken filter looks exactly like a filter
+ * that matched everything. Repeated bare keys are what the API expects.
+ */
+export function serializeParams(params: Record<string, unknown>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item !== undefined && item !== null && item !== "") {
+          search.append(key, String(item));
+        }
+      }
+    } else if (value !== undefined && value !== null && value !== "") {
+      search.append(key, String(value));
+    }
+  }
+  return search.toString();
+}
+
 export const http: AxiosInstance = axios.create({
   // Empty base means same-origin "/api", which the Vite proxy handles in dev
   // and a platform rewrite handles in production.
   baseURL: import.meta.env.VITE_API_BASE_URL || "",
   timeout: 30_000,
   headers: { "Content-Type": "application/json" },
+  paramsSerializer: serializeParams,
 });
 
 http.interceptors.request.use((config) => {

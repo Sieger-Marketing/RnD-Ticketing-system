@@ -58,11 +58,17 @@ const COLUMN_ACCENT: Record<string, string> = {
   completed: "border-t-rag-green",
 };
 
+/**
+ * States the API refuses for an overdue task unless a delay reason comes with
+ * the move. Mirrors the rule in task_service.
+ */
+const NEEDS_DELAY_REASON: TaskStatus[] = ["Completed", "Submitted for Review"];
+
 interface PendingMove {
   task: TaskSummary;
   status: TaskStatus;
-  /** Blocking and delayed moves both demand a written reason. */
-  needsBlockerReason: boolean;
+  /** Which question the move has to answer before it can go through. */
+  ask: "blocker" | "delay";
 }
 
 export default function Kanban() {
@@ -128,7 +134,17 @@ export default function Kanban() {
       setMoveError(null);
       setNote("");
       setDelayReason("");
-      setPending({ task, status, needsBlockerReason: true });
+      setPending({ task, status, ask: "blocker" });
+      return;
+    }
+
+    // Dropping an overdue card onto Completed or Review used to fail with "a
+    // delay reason is required" and offer nowhere to give one.
+    if (task.is_overdue && NEEDS_DELAY_REASON.includes(status)) {
+      setMoveError(null);
+      setNote("");
+      setDelayReason("");
+      setPending({ task, status, ask: "delay" });
       return;
     }
 
@@ -175,7 +191,7 @@ export default function Kanban() {
         }
       />
 
-      {moveError && !pending?.needsBlockerReason && (
+      {moveError && !pending && (
         <div className="mb-3">
           <FormError error={moveError} />
         </div>
@@ -303,7 +319,65 @@ export default function Kanban() {
       )}
 
       <Modal
-        open={Boolean(pending?.needsBlockerReason)}
+        open={pending?.ask === "delay"}
+        onClose={() => {
+          setPending(null);
+          setMoveError(null);
+        }}
+        title={`Move to ${pending?.status ?? ""}`}
+        description={pending ? `${pending.task.code} — ${pending.task.name}` : undefined}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setPending(null);
+                setMoveError(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() =>
+                pending &&
+                applyMove(pending.task, pending.status, { delay_reason: delayReason })
+              }
+              disabled={move.isPending || !delayReason}
+            >
+              {move.isPending && <Spinner />}
+              Confirm
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <FormError error={moveError} />
+          <InlineAlert tone="warn">
+            This task is {pending?.task.delay_days} day
+            {pending?.task.delay_days === 1 ? "" : "s"} past its planned end date.
+            The reason separates delays the team could control from those it
+            could not.
+          </InlineAlert>
+          <Field label="Delay reason" htmlFor="board_delay" required>
+            <Select
+              id="board_delay"
+              value={delayReason}
+              onChange={(e) => setDelayReason(e.target.value)}
+              placeholder="Choose a reason"
+              options={delayReasons.map((r) => ({
+                value: r.value,
+                label: `${r.value} (${r.accountability.toLowerCase()})`,
+              }))}
+            />
+          </Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={pending?.ask === "blocker"}
         onClose={() => {
           setPending(null);
           setMoveError(null);
