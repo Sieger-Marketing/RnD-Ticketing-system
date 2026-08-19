@@ -894,3 +894,11 @@ export function useApplyStandard(projectId: UUID) {
     onSuccess: () => invalidateWorkflow(qc),
   });
 }
+
+/** Change your own password. Requires the current one. */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (body: { current_password: string; new_password: string }) =>
+      post<{ message: string }>("/api/auth/change-password", body),
+  });
+}

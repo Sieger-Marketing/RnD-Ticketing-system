@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   ListChecks,
+  KeyRound,
   LogOut,
   Menu,
   RotateCcw,
@@ -29,6 +30,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import siegerLogo from "@/assets/sieger-logo.png";
+import { ChangePasswordModal } from "@/components/ChangePasswordModal";
 import { Avatar, Spinner } from "@/components/ui/primitives";
 import {
   useMarkAllRead,
@@ -315,6 +317,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Navigating on a phone should close the drawer, or the new page is hidden
   // behind it.
@@ -406,6 +409,15 @@ export default function AppLayout() {
             <button
               type="button"
               className="btn-ghost px-1.5"
+              onClick={() => setChangingPassword(true)}
+              title="Change your password"
+              aria-label="Change your password"
+            >
+              <KeyRound className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              className="btn-ghost px-1.5"
               onClick={handleSignOut}
               title="Sign out"
               aria-label="Sign out"
@@ -456,6 +468,11 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ChangePasswordModal
+        open={changingPassword}
+        onClose={() => setChangingPassword(false)}
+      />
     </div>
   );
 }
