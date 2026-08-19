@@ -267,7 +267,20 @@ _DESIGNER = [
     P.FILE_VIEW,
 ]
 
+#: Everything. Deliberately not composed from the other roles -- it is
+#: derived from the catalogue, so a permission added later is granted here
+#: automatically and an administrator never silently loses the ability to
+#: use a feature the moment it ships.
+#:
+#: Worth being clear about the trade: an account holding every permission
+#: can create work, do it, and approve it. The self-review ban still
+#: applies -- it keys on who the task is assigned to, not on role -- but
+#: separation of duties otherwise rests on this account being used
+#: sparingly rather than as somebody's day-to-day login.
+_ADMINISTRATOR = sorted(PERMISSION_CATALOG)
+
 DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
+    RoleName.ADMINISTRATOR.value: _ADMINISTRATOR,
     RoleName.DIRECTOR.value: sorted(set(_DIRECTOR)),
     RoleName.DESIGN_MANAGER.value: sorted(set(_DESIGN_MANAGER)),
     RoleName.TEAM_LEAD.value: sorted(set(_TEAM_LEAD)),
@@ -276,6 +289,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, list[str]] = {
 
 #: Lower rank == wider authority. Used for "may I act on this person's data".
 ROLE_RANKS: dict[str, int] = {
+    RoleName.ADMINISTRATOR.value: 0,
     RoleName.DIRECTOR.value: 10,
     RoleName.DESIGN_MANAGER.value: 20,
     RoleName.TEAM_LEAD.value: 30,
@@ -284,6 +298,9 @@ ROLE_RANKS: dict[str, int] = {
 
 #: Where each role lands after login (spec section 39).
 ROLE_HOME_ROUTE: dict[str, str] = {
+    # An administrator is there to run the department, not to read the
+    # boardroom summary, so they land on the operational screen.
+    RoleName.ADMINISTRATOR.value: "/dashboard/manager",
     RoleName.DIRECTOR.value: "/dashboard/executive",
     RoleName.DESIGN_MANAGER.value: "/dashboard/manager",
     RoleName.TEAM_LEAD.value: "/dashboard/team-lead",

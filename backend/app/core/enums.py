@@ -21,6 +21,7 @@ class StrEnum(str, Enum):
 # People
 # ---------------------------------------------------------------------------
 class RoleName(StrEnum):
+    ADMINISTRATOR = "Administrator"
     DIRECTOR = "Director"
     DESIGN_MANAGER = "Design Manager"
     TEAM_LEAD = "Team Lead"

@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     # Seeding
     SEED_DEFAULT_PASSWORD: str = "Design@123"
 
+    # The one account that holds every permission. Created on bootstrap if it
+    # does not exist; never modified afterwards. Blank the email to skip it.
+    ADMIN_EMAIL: str = "admin@sieger.in"
+    ADMIN_NAME: str = "Sieger Administrator"
+
     def assert_deployable(self) -> None:
         """Refuse to start a production deployment on development defaults.
 

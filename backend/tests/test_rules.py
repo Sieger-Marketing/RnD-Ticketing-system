@@ -736,20 +736,29 @@ class TestAdvisoryDependencies:
         ).scalars().all()
         assert set(gating) <= {"Checking", "BOM", "Documentation"}, set(gating)
 
-    def test_a_lead_now_has_startable_work(self, db):
-        """The symptom that motivated the change."""
+    def test_a_generated_release_has_work_that_can_begin(self, sandbox, db):
+        """The symptom that motivated the change, asserted on the template.
+
+        The earlier version of this test surveyed whichever tasks happened to
+        be in the database, so trimming demo data or importing a real project
+        could fail it without anything being wrong. It now checks the thing the
+        change was actually about: a release generated from a template offers
+        work that can start, rather than gating every task behind the one
+        before it.
+        """
         from sqlalchemy import select
 
         from app.models.task import Task
         from app.services import task_service
 
-        assigned = db.execute(
-            select(Task).where(Task.status == "Assigned").limit(60)
+        tasks = db.execute(
+            select(Task).where(Task.release_id == sandbox["release"]["id"])
         ).scalars().all()
-        assert assigned, "expected assigned tasks in the seeded data"
+        assert tasks, "the sandbox release should have generated tasks"
 
-        startable = [t for t in assigned if not task_service.blocking_prerequisites(db, t)]
+        startable = [t for t in tasks if not task_service.blocking_prerequisites(db, t)]
         assert startable, (
-            "every assigned task is still gated behind a prerequisite; a lead "
-            "cannot start anything"
+            "every task in a freshly generated release is gated behind another; "
+            "a lead would have nothing they were allowed to begin"
         )
+

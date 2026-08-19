@@ -16,8 +16,10 @@ from app.core.permissions import (
     PERMISSION_CATALOG,
     ROLE_RANKS,
 )
-from app.models.user import Permission, Role, RolePermission
-from app.services import settings_service
+from app.core.config import settings
+from app.core.security import hash_password
+from app.models.user import Permission, Role, RolePermission, User, UserRole
+from app.services import code_service, settings_service
 
 ROLE_DESCRIPTIONS = {
     RoleName.DIRECTOR.value: "Executive visibility across the department. Read-only.",
@@ -97,6 +99,43 @@ def sync_role_permissions(db: Session) -> int:
     return added
 
 
+def ensure_administrator(db: Session) -> str | None:
+    """Create the administrator account if it is missing.
+
+    Address and password come from the environment, so the one account that can
+    do anything is never a value sitting in this repository. Existing accounts
+    are left alone: this runs on every deploy, and resetting somebody's
+    password on each push would be its own kind of outage.
+    """
+    email = settings.ADMIN_EMAIL.strip().lower()
+    if not email:
+        return None
+
+    if db.execute(select(User).where(User.email == email)).scalar_one_or_none():
+        return None
+
+    role = db.execute(
+        select(Role).where(Role.name == RoleName.ADMINISTRATOR.value)
+    ).scalar_one_or_none()
+    if role is None:
+        return None
+
+    user = User(
+        code=code_service.next_code(db, "user"),
+        email=email,
+        full_name=settings.ADMIN_NAME,
+        designation="System Administrator",
+        department="Design",
+        hashed_password=hash_password(settings.SEED_DEFAULT_PASSWORD),
+        is_active=True,
+    )
+    db.add(user)
+    db.flush()
+    db.add(UserRole(user_id=user.id, role_id=role.id))
+    db.flush()
+    return email
+
+
 def run(db: Session) -> dict[str, int]:
     result = {
         "permissions_added": sync_permissions(db),
@@ -104,4 +143,7 @@ def run(db: Session) -> dict[str, int]:
     }
     result["role_permissions_added"] = sync_role_permissions(db)
     result["settings_added"] = settings_service.ensure_defaults(db)
+    created = ensure_administrator(db)
+    if created:
+        result["administrator_created"] = created
     return result
