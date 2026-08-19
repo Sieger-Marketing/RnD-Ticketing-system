@@ -11,7 +11,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +27,7 @@ export default function Login() {
     setError(null);
     setBusy(true);
     try {
-      const signedIn = await signIn(email.trim(), password);
+      const signedIn = await signIn(identifier.trim(), password);
       // Land on the dashboard the role implies, decided by the server. "/"
       // means the server had no route for this user's role; sending them there
       // would bounce them straight back into HomeRedirect.
@@ -68,19 +68,26 @@ export default function Login() {
           {error && <InlineAlert tone="error">{error}</InlineAlert>}
 
           <div>
-            <label className="label" htmlFor="email">
-              Email address
+            <label className="label" htmlFor="identifier">
+              Employee code
             </label>
             <input
-              id="email"
+              id="identifier"
               className="input"
-              type="email"
+              // Deliberately not type="email": most people here sign in as
+              // SIES00267, and the browser would refuse to submit that.
+              type="text"
+              inputMode="text"
+              autoCapitalize="characters"
               autoComplete="username"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="SIES00267"
             />
+            <p className="mt-1 text-xs text-ink-500">
+              Your employee code, or the email address if you have one.
+            </p>
           </div>
 
           <div>
@@ -101,7 +108,7 @@ export default function Login() {
           <button
             type="submit"
             className="btn-primary w-full"
-            disabled={busy || !email || !password}
+            disabled={busy || !identifier || !password}
           >
             {busy && <Spinner />}
             {busy ? "Signing in" : "Sign in"}

@@ -109,6 +109,15 @@ class User(Base, BusinessEntity):
     )
 
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+
+    #: What the design team actually calls a person: SIES00267. It is how they
+    #: sign in, because it is the identifier already printed on their card and
+    #: used on every drawing, and several of them have no work mailbox.
+    #: Nullable because the administrator account predates it and has none.
+    employee_code: Mapped[str | None] = mapped_column(
+        String(40), unique=True, index=True
+    )
+
     hashed_password: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(160))
     designation: Mapped[str | None] = mapped_column(String(120))

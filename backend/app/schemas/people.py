@@ -45,6 +45,7 @@ class UserOut(ORMModel):
     id: uuid.UUID
     code: str
     email: str
+    employee_code: str | None = None
     full_name: str
     designation: str | None = None
     department: str | None = None
@@ -64,6 +65,7 @@ class UserOut(ORMModel):
             id=user.id,
             code=user.code,
             email=user.email,
+            employee_code=user.employee_code,
             full_name=user.full_name,
             designation=user.designation,
             department=user.department,
@@ -95,6 +97,8 @@ class UserOut(ORMModel):
 
 class UserCreate(BaseModel):
     email: EmailStr
+    #: The identifier the person signs in with, e.g. SIES00267.
+    employee_code: str | None = Field(None, min_length=1, max_length=40)
     password: str = Field(min_length=8, max_length=200)
     full_name: str = Field(min_length=1, max_length=160)
     designation: str | None = None
@@ -107,6 +111,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    employee_code: str | None = Field(None, min_length=1, max_length=40)
     full_name: str | None = Field(None, min_length=1, max_length=160)
     designation: str | None = None
     department: str | None = None

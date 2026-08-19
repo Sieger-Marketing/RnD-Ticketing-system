@@ -4,13 +4,25 @@ from __future__ import annotations
 
 import uuid
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from app.schemas.common import ORMModel
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    """Sign in with an employee code or an email address.
+
+    Most of the design team signs in as SIES00267; the administrator account
+    has an address and no employee code. One field takes either, so the form
+    does not make people choose which kind of person they are. The alias keeps
+    an older client that posts "email" working unchanged.
+    """
+
+    identifier: str = Field(
+        min_length=1,
+        max_length=255,
+        validation_alias=AliasChoices("identifier", "employee_code", "email"),
+    )
     password: str = Field(min_length=1, max_length=200)
 
 
@@ -25,6 +37,7 @@ class CurrentUser(ORMModel):
     id: uuid.UUID
     code: str
     email: str
+    employee_code: str | None = None
     full_name: str
     designation: str | None = None
     department: str | None = None
@@ -39,6 +52,7 @@ class CurrentUser(ORMModel):
             id=user.id,
             code=user.code,
             email=user.email,
+            employee_code=user.employee_code,
             full_name=user.full_name,
             designation=user.designation,
             department=user.department,

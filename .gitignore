@@ -35,3 +35,6 @@ Thumbs.db
 
 # Local dev logs
 *.log
+
+# Generated credentials. Handed out once and deleted; never committed.
+initial-passwords*.csv

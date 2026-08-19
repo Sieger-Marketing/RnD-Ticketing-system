@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -36,15 +36,25 @@ def home_route_for(user: User) -> str:
 def login(
     payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 ) -> TokenResponse:
+    identifier = payload.identifier.strip()
+
+    # Either identity, matched in one query. Employee codes are compared
+    # case-insensitively because people type sies00267 as readily as SIES00267,
+    # and a code is not a secret worth being fussy about.
     user = db.execute(
-        select(User).where(User.email == payload.email.lower())
+        select(User).where(
+            or_(
+                User.email == identifier.lower(),
+                func.upper(User.employee_code) == identifier.upper(),
+            )
+        )
     ).scalar_one_or_none()
 
-    # Same message and roughly the same work whether the address is unknown or
-    # the password is wrong, so the endpoint does not confirm which emails
+    # Same message and roughly the same work whether the identifier is unknown
+    # or the password is wrong, so the endpoint does not confirm which accounts
     # exist.
     if user is None or not verify_password(payload.password, user.hashed_password):
-        raise AuthenticationError("Incorrect email or password.")
+        raise AuthenticationError("Incorrect employee code or password.")
     if not user.is_active:
         raise AuthenticationError("This account has been deactivated.")
 

@@ -96,11 +96,20 @@ def create_user(
     if db.execute(select(User.id).where(User.email == email)).first():
         raise ValidationError("A user with that email address already exists.")
 
+    employee_code = payload.employee_code.strip().upper() if payload.employee_code else None
+    if employee_code and db.execute(
+        select(User.id).where(User.employee_code == employee_code)
+    ).first():
+        raise ValidationError(
+            f"Employee code {employee_code} already belongs to another account."
+        )
+
     roles = _roles_by_name(db, payload.roles)
 
     user = User(
         code=code_service.next_code(db, "user"),
         email=email,
+        employee_code=employee_code,
         hashed_password=hash_password(payload.password),
         full_name=payload.full_name,
         designation=payload.designation,
@@ -156,14 +165,32 @@ def update_user(
         raise NotFoundError("User not found.")
 
     tracked = [
-        "full_name", "designation", "department", "phone", "is_active",
-        "reports_to_id", "standard_daily_hours", "working_days_per_week",
+        "employee_code", "full_name", "designation", "department", "phone",
+        "is_active", "reports_to_id", "standard_daily_hours",
+        "working_days_per_week",
     ]
     before = {f: getattr(user, f) for f in tracked}
     before["roles"] = sorted(user.role_names)
 
     updates = payload.model_dump(exclude_unset=True)
     new_roles = updates.pop("roles", None)
+
+    # Normalised and checked here rather than trusted from the client: an
+    # employee code is what someone signs in with, so two accounts sharing one
+    # would make a login ambiguous.
+    if "employee_code" in updates and updates["employee_code"]:
+        code = updates["employee_code"].strip().upper()
+        clash = db.execute(
+            select(User.id).where(
+                User.employee_code == code, User.id != user.id
+            )
+        ).first()
+        if clash:
+            raise ValidationError(
+                f"Employee code {code} already belongs to another account."
+            )
+        updates["employee_code"] = code
+
     for field, value in updates.items():
         setattr(user, field, value)
 

@@ -39,7 +39,8 @@ PROJECT_PATTERNS = [
     "Standard Test - %",
 ]
 
-#: The factory in tests/conftest.py mints users as test.<label>.<stamp>@...
+#: Every account the suite creates is minted as test.<label>.<stamp>@... --
+#: the one convention the tests are held to, precisely so this can find them.
 USER_PATTERN = "test.%@designops.dev"
 
 COUNTED = [

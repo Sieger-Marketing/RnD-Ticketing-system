@@ -17,7 +17,8 @@ interface AuthState {
   token: string | null;
   /** True until the initial `/auth/me` check has settled. */
   initializing: boolean;
-  signIn: (email: string, password: string) => Promise<CurrentUser>;
+  /** Takes an employee code (SIES00267) or an email address. */
+  signIn: (identifier: string, password: string) => Promise<CurrentUser>;
   signOut: () => void;
   restore: () => Promise<void>;
   can: (...permissions: string[]) => boolean;
@@ -30,8 +31,12 @@ export const useAuth = create<AuthState>((set, getState) => ({
   token: getStoredToken(),
   initializing: true,
 
-  async signIn(email, password) {
-    const data = await post<TokenResponse>("/api/auth/login", { email, password });
+  async signIn(identifier, password) {
+    // The server takes an employee code or an email address in one field.
+    const data = await post<TokenResponse>("/api/auth/login", {
+      identifier,
+      password,
+    });
     setStoredToken(data.access_token);
     set({ token: data.access_token, user: data.user, initializing: false });
     return data.user;
