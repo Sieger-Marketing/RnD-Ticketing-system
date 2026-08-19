@@ -30,6 +30,7 @@ import TaskDetail from "@/routes/TaskDetail";
 import Tasks from "@/routes/Tasks";
 import Templates from "@/routes/Templates";
 import Timesheet from "@/routes/Timesheet";
+import Users from "@/routes/Users";
 import { useAuth } from "@/store/auth";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -134,6 +135,15 @@ export default function App() {
         {/* The release standard is reference material for the whole team --
             a designer benefits from seeing where their release sits. */}
         <Route path="/standards" element={<Standards />} />
+
+        <Route
+          path="/people"
+          element={
+            <RequirePermission anyOf={["user.view"]}>
+              <Users />
+            </RequirePermission>
+          }
+        />
 
         <Route
           path="/templates"

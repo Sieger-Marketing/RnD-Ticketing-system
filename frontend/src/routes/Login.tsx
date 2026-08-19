@@ -69,7 +69,7 @@ export default function Login() {
 
           <div>
             <label className="label" htmlFor="identifier">
-              Employee code
+              Employee code or email
             </label>
             <input
               id="identifier"
@@ -83,10 +83,11 @@ export default function Login() {
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="SIES00267"
+              placeholder="SIES00267 or you@sieger.in"
             />
             <p className="mt-1 text-xs text-ink-500">
-              Your employee code, or the email address if you have one.
+              Designers sign in with their employee code. Managers and the
+              administrator use their email address.
             </p>
           </div>
 

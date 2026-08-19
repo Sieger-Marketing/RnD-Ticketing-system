@@ -24,6 +24,7 @@ import {
   Menu,
   RotateCcw,
   Square,
+  Users2,
   X,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -127,6 +128,12 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         label: "Templates",
         icon: <FileStack className="h-4 w-4" />,
         anyOf: ["template.view"],
+      },
+      {
+        to: "/people",
+        label: "People",
+        icon: <Users2 className="h-4 w-4" />,
+        anyOf: ["user.view"],
       },
     ],
   },

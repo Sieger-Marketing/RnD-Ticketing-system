@@ -12,11 +12,12 @@ from app.core.deps import client_context, get_current_user, require_permission
 from app.core.enums import AuditAction
 from app.core.errors import NotFoundError, ValidationError
 from app.core.permissions import P
-from app.core.security import hash_password
+from app.core.security import generate_password, hash_password
 from app.db.session import get_db
 from app.models.user import Role, Skill, User, UserRole, UserSkill
 from app.schemas.common import Message, Page
 from app.schemas.people import (
+    PasswordResetOut,
     RoleOut,
     SkillCreate,
     SkillOut,
@@ -218,6 +219,49 @@ def update_user(
         context=client_context(request),
     )
     return UserOut.from_model(user)
+
+
+@router.post("/users/{user_id}/reset-password", response_model=PasswordResetOut)
+def reset_password(
+    user_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission(P.USER_MANAGE)),
+) -> PasswordResetOut:
+    """Give someone a new password because they have lost theirs.
+
+    The server picks it rather than the administrator, for two reasons: an
+    administrator choosing passwords tends to choose the same one repeatedly,
+    and a password typed into a form is a password that has been somewhere it
+    did not need to go. It is returned once, here, and stored only hashed --
+    reading it a second time is not possible, and a second reset is cheap.
+    """
+    user = db.get(User, user_id)
+    if user is None:
+        raise NotFoundError("User not found.")
+
+    password = generate_password()
+    user.hashed_password = hash_password(password)
+    db.flush()
+
+    audit_service.record(
+        db,
+        entity_type="user",
+        entity_id=user.id,
+        entity_code=user.code,
+        action=AuditAction.UPDATE,
+        actor=actor,
+        # The password is deliberately absent from the audit trail.
+        summary=f"Reset the password for {user.full_name}",
+        context=client_context(request),
+    )
+
+    return PasswordResetOut(
+        user_id=user.id,
+        employee_code=user.employee_code,
+        full_name=user.full_name,
+        password=password,
+    )
 
 
 @router.post("/users/{user_id}/skills", response_model=UserOut)

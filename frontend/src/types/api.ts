@@ -121,6 +121,8 @@ export interface User {
   id: UUID;
   code: string;
   email: string;
+  /** What people sign in with, e.g. SIES00267. Absent for the administrator. */
+  employee_code: string | null;
   full_name: string;
   designation: string | null;
   department: string | null;
@@ -639,4 +641,19 @@ export interface ProductStandard {
   product_name: string;
   tasks: string[];
   variants: StandardVariant[];
+}
+
+export interface Role {
+  id: UUID;
+  name: string;
+  description: string | null;
+  permissions: string[];
+}
+
+/** Returned once when an administrator resets someone's password. */
+export interface PasswordReset {
+  user_id: UUID;
+  employee_code: string | null;
+  full_name: string;
+  password: string;
 }

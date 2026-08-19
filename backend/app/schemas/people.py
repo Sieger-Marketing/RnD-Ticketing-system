@@ -226,3 +226,17 @@ class CapacitySummary(BaseModel):
     has_required_skill: bool | None = None
     skill_rank: int | None = None
     headroom_hours: float | None = None
+
+
+class PasswordResetOut(BaseModel):
+    """The result of an administrator resetting someone's password.
+
+    The new password is returned once, in this response, and is not stored
+    anywhere in readable form. Read it to the person; they change it on their
+    next sign-in.
+    """
+
+    user_id: uuid.UUID
+    employee_code: str | None = None
+    full_name: str
+    password: str

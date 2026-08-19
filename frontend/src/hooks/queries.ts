@@ -28,6 +28,7 @@ import type {
   Page,
   Product,
   ProductFamily,
+  PasswordReset,
   ProductStandard,
   ProjectDetail,
   ProjectSummary,
@@ -35,6 +36,7 @@ import type {
   ReleaseSummary,
   Review,
   Revision,
+  Role,
   Skill,
   TaskDetail,
   TaskSummary,
@@ -900,5 +902,49 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (body: { current_password: string; new_password: string }) =>
       post<{ message: string }>("/api/auth/change-password", body),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// People administration
+// ---------------------------------------------------------------------------
+
+export function useRoles() {
+  return useQuery({
+    queryKey: ["roles"],
+    queryFn: () => get<Role[]>("/api/roles"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+function invalidatePeople(qc: ReturnType<typeof useQueryClient>) {
+  for (const key of ["users", "user", "capacity", "assignment-board", "heatmap"]) {
+    qc.invalidateQueries({ queryKey: [key] });
+  }
+}
+
+export function useCreateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => post<User>("/api/users", body),
+    onSuccess: () => invalidatePeople(qc),
+  });
+}
+
+export function useUpdateUser(id: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      patch<User>(`/api/users/${id}`, body),
+    onSuccess: () => invalidatePeople(qc),
+  });
+}
+
+/** Give someone a new password. It comes back once and is never readable again. */
+export function useResetPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: UUID) => post<PasswordReset>(`/api/users/${id}/reset-password`, {}),
+    onSuccess: () => invalidatePeople(qc),
   });
 }

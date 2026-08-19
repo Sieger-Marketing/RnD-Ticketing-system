@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -20,6 +21,16 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(_truncate(password))
+
+
+#: Unambiguous alphabet: no O/0, no l/1/I. A generated password gets read off
+#: a screen and typed by hand, and one nobody can transcribe is a support call.
+_PASSWORD_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+
+
+def generate_password(length: int = 12) -> str:
+    """A random initial password, for a new account or an admin reset."""
+    return "".join(secrets.choice(_PASSWORD_ALPHABET) for _ in range(length))
 
 
 def verify_password(plain: str, hashed: str) -> bool:

@@ -164,3 +164,51 @@ def test_a_deactivated_account_cannot_sign_in(manager, client, coded_user):
     assert response.status_code == 401, response.text
 
     manager.patch(f"/api/users/{user_id}", json={"is_active": True})
+
+
+def test_an_administrator_can_reset_a_forgotten_password(manager, client, coded_user):
+    """The Monday-morning support call, without a database client."""
+    user_id = coded_user["user"]["id"]
+    response = manager.post(f"/api/users/{user_id}/reset-password")
+    assert response.status_code == 200, response.text
+
+    body = response.json()
+    assert body["employee_code"] == coded_user["code"]
+    assert len(body["password"]) >= 8
+
+    # The old password stops working and the new one starts.
+    old = client.post(
+        "/api/auth/login",
+        json={"identifier": coded_user["code"], "password": coded_user["password"]},
+    )
+    assert old.status_code == 401
+
+    new = client.post(
+        "/api/auth/login",
+        json={"identifier": coded_user["code"], "password": body["password"]},
+    )
+    assert new.status_code == 200, new.text
+
+    # Keep the fixture usable for whatever runs after this.
+    coded_user["password"] = body["password"]
+
+
+def test_a_generated_password_avoids_characters_people_misread(manager, coded_user):
+    """It gets read off a screen and typed by hand."""
+    response = manager.post(f"/api/users/{coded_user['user']['id']}/reset-password")
+    assert response.status_code == 200, response.text
+    password = response.json()["password"]
+    assert not set(password) & set("O0l1I")
+    coded_user["password"] = password
+
+
+def test_a_designer_cannot_reset_anyone_else(designer, coded_user):
+    response = designer.post(f"/api/users/{coded_user['user']['id']}/reset-password")
+    assert response.status_code == 403, response.text
+
+
+def test_resetting_an_unknown_person_is_a_404(manager):
+    response = manager.post(
+        "/api/users/00000000-0000-0000-0000-000000000000/reset-password"
+    )
+    assert response.status_code == 404, response.text
