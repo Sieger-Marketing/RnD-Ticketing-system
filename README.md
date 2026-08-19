@@ -15,10 +15,10 @@ PROJECT → DESIGN RELEASE → PRODUCT TEMPLATE → TASK → EXECUTION
 |---|---|
 | Database schema + migrations | 34 tables, 240 indexes, 65 FKs, 24 check constraints |
 | Auth + RBAC | 4 roles, 55 permissions, permission-gated routes |
-| Core workflow API | 114 endpoints, OpenAPI documented |
+| Core workflow API | 118 endpoints, OpenAPI documented |
 | KPI / capacity / delay / health engines | Complete, config-driven |
 | Demo data | 15 users, 10 projects, 26 releases, 160 tasks, 340 time entries |
-| Automated tests | 116 backend, covering the acceptance scenario end to end. No frontend test suite yet. |
+| Automated tests | 140 backend, covering the acceptance scenario end to end. No frontend test suite yet. |
 | Frontend | Stages 1-4: dashboards, projects, releases, templates, tasks, Kanban, reviews, revisions, timesheets |
 
 ## Requirements
@@ -120,6 +120,7 @@ users and projects per run, so the suite is repeatable without wiping data.
 | `tests/test_kpi.py` | Every KPI formula, including the "no data" cases |
 | `tests/test_acceptance.py` | The full section 51 scenario, end to end |
 | `tests/test_rules.py` | RBAC, data integrity, workflow and settings validation |
+| `tests/test_reports.py` | Report generation, exports, and that "no data" survives each format |
 
 ## Project layout
 

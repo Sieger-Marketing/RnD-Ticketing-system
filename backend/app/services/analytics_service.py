@@ -283,6 +283,22 @@ def execution_staff(db: Session) -> list[User]:
     )
 
 
+def team_leads(db: Session) -> list[User]:
+    """Active Team Leads, for the reports and scorecards that group by them."""
+    return (
+        db.execute(
+            select(User)
+            .join(UserRole, UserRole.user_id == User.id)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(User.is_active.is_(True), Role.name == "Team Lead")
+            .order_by(User.full_name)
+            .distinct()
+        )
+        .scalars()
+        .all()
+    )
+
+
 def _health_breakdown(db: Session) -> dict:
     rows = db.execute(
         select(Project.health, func.count())

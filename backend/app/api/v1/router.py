@@ -10,6 +10,7 @@ from app.api.v1 import (
     notifications,
     projects,
     releases,
+    reports,
     resources,
     reviews,
     settings,
@@ -33,5 +34,6 @@ api_router.include_router(time_entries.router)
 api_router.include_router(reviews.router)
 api_router.include_router(resources.router)
 api_router.include_router(analytics.router)
+api_router.include_router(reports.router)
 api_router.include_router(notifications.router)
 api_router.include_router(settings.router)
