@@ -13,6 +13,12 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.db.base import Base  # noqa: F401 -- registers all models
 
+# Migrations run first in a deployment's start command, so this is the first
+# thing that touches the database and the first place a missing DATABASE_URL
+# shows up. Checking here means the log names the variable instead of showing
+# a connection refused to localhost.
+settings.assert_deployable()
+
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
