@@ -66,6 +66,7 @@ def reset(confirm: bool) -> None:
 
 
 def main() -> None:
+    settings.assert_deployable()
     parser = argparse.ArgumentParser(description="Seed the Design Operations database.")
     parser.add_argument("--demo", action="store_true", help="also seed demo data")
     parser.add_argument("--reset", action="store_true", help="wipe business data first")

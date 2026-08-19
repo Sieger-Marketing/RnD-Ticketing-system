@@ -48,6 +48,51 @@ class Settings(BaseSettings):
     # Seeding
     SEED_DEFAULT_PASSWORD: str = "Design@123"
 
+    def assert_deployable(self) -> None:
+        """Refuse to start a production deployment on development defaults.
+
+        Every default in this class is chosen for a laptop. On a deployed
+        service each one is a different kind of wrong, and each fails somewhere
+        far from the cause: an unset DATABASE_URL surfaces sixty frames deep in
+        SQLAlchemy as "connection to 127.0.0.1 refused", which reads like the
+        database is down rather than never configured. Failing here, by name,
+        costs one line of logs instead of a stack trace.
+        """
+        if self.ENVIRONMENT != "production":
+            return
+
+        problems: list[str] = []
+
+        if "127.0.0.1" in self.DATABASE_URL or "localhost" in self.DATABASE_URL:
+            problems.append(
+                "DATABASE_URL still points at localhost, so it was never set. "
+                "Use the connection string from your managed Postgres, with "
+                "the scheme rewritten to postgresql+psycopg:// -- this app "
+                "uses psycopg 3 and will not load psycopg2."
+            )
+        if self.SECRET_KEY.startswith("dev-only"):
+            problems.append("SECRET_KEY is still the development placeholder.")
+        if self.JWT_SECRET.startswith("dev-only"):
+            problems.append("JWT_SECRET is still the development placeholder.")
+        if self.SEED_DEFAULT_PASSWORD == "Design@123":
+            problems.append(
+                "SEED_DEFAULT_PASSWORD is still the published default, which "
+                "would give every seeded account -- including a Design Manager "
+                "-- a password anyone reading this repository knows."
+            )
+        if "localhost" in self.FRONTEND_URL:
+            problems.append(
+                "FRONTEND_URL still points at localhost, so CORS will reject "
+                "every request from the deployed site."
+            )
+
+        if problems:
+            raise RuntimeError(
+                "Refusing to start: this is configured as production but is "
+                "running on development defaults.\n  - "
+                + "\n  - ".join(problems)
+            )
+
     @property
     def cors_origins(self) -> list[str]:
         return [

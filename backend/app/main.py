@@ -16,6 +16,10 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
 )
 
+# Checked before the app object exists, so a misconfigured deployment fails
+# with one legible line rather than at the first database call.
+settings.assert_deployable()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
