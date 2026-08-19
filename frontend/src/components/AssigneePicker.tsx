@@ -114,7 +114,7 @@ export function AssigneePicker({
       {selectedId && (
         <button
           type="button"
-          className="mb-2 text-2xs text-brand-600 hover:underline"
+          className="mb-2 text-2xs text-signal-700 hover:underline"
           onClick={() => onSelect(null)}
         >
           Clear selection (leave unassigned)
@@ -136,7 +136,7 @@ export function AssigneePicker({
               onClick={() => onSelect(person.user_id)}
               className={clsx(
                 "flex w-full items-start gap-3 px-3 py-2 text-left transition-colors",
-                selected ? "bg-brand-50" : "hover:bg-ink-50",
+                selected ? "bg-signal-50" : "hover:bg-ink-50",
               )}
             >
               <div className="min-w-0 flex-1">
@@ -200,7 +200,7 @@ export function AssigneePicker({
                   band={person.utilization_band}
                   value={person.utilization_percent}
                 />
-                {selected && <Check className="h-4 w-4 text-brand-600" />}
+                {selected && <Check className="h-4 w-4 text-signal-700" />}
               </div>
             </button>
           );

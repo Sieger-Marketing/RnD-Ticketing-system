@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 
+import siegerLogo from "@/assets/sieger-logo.png";
 import { InlineAlert, Spinner } from "@/components/ui/primitives";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/store/auth";
@@ -45,13 +46,19 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-ink-100 px-4 py-10">
+    <div className="flex min-h-full items-center justify-center bg-cream-200 px-4 py-8 sm:py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-            DO
-          </span>
-          <h1 className="text-lg font-semibold text-ink-900">Design Operations</h1>
+          <img
+            src={siegerLogo}
+            alt="Sieger"
+            className="mx-auto mb-4 h-12 w-auto sm:h-14"
+            width={1533}
+            height={525}
+          />
+          <h1 className="font-display text-lg font-semibold text-ink-900">
+            Design Operations
+          </h1>
           <p className="mt-0.5 text-sm text-ink-500">
             Sign in to your design department workspace
           </p>
@@ -104,6 +111,9 @@ export default function Login() {
         <p className="mt-4 text-center text-2xs text-ink-400">
           Access is governed by your role. Contact your Design Manager if you need
           different permissions.
+        </p>
+        <p className="mt-5 text-center font-display text-2xs font-medium uppercase tracking-[0.2em] text-signal-700">
+          Partnering Progress
         </p>
       </div>
     </div>

@@ -276,7 +276,7 @@ export default function ManagerDashboard() {
                         <td className="td">
                           <ProgressBar
                             value={r.completion_percent}
-                            tone={r.health === "RED" ? "red" : r.health === "AMBER" ? "amber" : "brand"}
+                            tone={r.health === "RED" ? "red" : r.health === "AMBER" ? "amber" : "neutral"}
                           />
                         </td>
                         <td className="td text-right text-xs tabular text-ink-600">

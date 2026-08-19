@@ -240,7 +240,7 @@ export default function Templates() {
                     <button
                       type="button"
                       className={`w-full px-3 py-2.5 text-left transition-colors ${
-                        active ? "bg-brand-50" : "hover:bg-ink-50"
+                        active ? "bg-signal-50" : "hover:bg-ink-50"
                       }`}
                       onClick={() => {
                         setSelectedTemplateId(t.id);
@@ -250,7 +250,7 @@ export default function Templates() {
                     >
                       <p
                         className={`text-xs font-medium ${
-                          active ? "text-brand-700" : "text-ink-900"
+                          active ? "text-signal-700" : "text-ink-900"
                         }`}
                       >
                         {t.name}
@@ -351,7 +351,7 @@ export default function Templates() {
                         }}
                         className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs transition-colors ${
                           active
-                            ? "border-brand-600 bg-brand-600 text-white"
+                            ? "border-ink-900 bg-ink-900 text-white"
                             : "border-ink-300 bg-white text-ink-600 hover:bg-ink-100"
                         }`}
                       >
@@ -555,7 +555,7 @@ function ReadOnlyTasks({ tasks }: { tasks: TemplateTask[] }) {
                       </span>
                     )}
                     {task.requires_review && (
-                      <span className="rounded bg-purple-50 px-1 py-0.5 text-2xs text-purple-700">
+                      <span className="rounded bg-rag-amberBg px-1 py-0.5 text-2xs text-rag-amber">
                         review
                       </span>
                     )}

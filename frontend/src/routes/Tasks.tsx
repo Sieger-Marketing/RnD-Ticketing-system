@@ -66,7 +66,7 @@ export default function Tasks() {
         }
         actions={
           <div className="flex items-center gap-1 rounded-md border border-ink-300 p-0.5">
-            <span className="btn px-2 py-1 bg-brand-600 text-white">
+            <span className="btn px-2 py-1 bg-ink-900 text-white">
               <List className="h-3.5 w-3.5" />
               List
             </span>

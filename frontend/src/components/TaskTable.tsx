@@ -4,6 +4,10 @@
  * Columns are opt-in so the same component serves a designer's personal queue
  * (who cares about due date and status) and a manager's overdue list (who also
  * needs the assignee, the project and the delay reason).
+ *
+ * On a phone each row becomes a card: ten columns of task data cannot be read
+ * by scrolling sideways, because the row you are reading leaves the screen
+ * before the column you want arrives.
  */
 
 import clsx from "clsx";
@@ -16,6 +20,7 @@ import {
   ProgressBar,
   StatusBadge,
 } from "@/components/ui/primitives";
+import { ResponsiveTable, type Column } from "@/components/ui/ResponsiveTable";
 import { DASH, hours, shortDate } from "@/lib/format";
 import type { TaskSummary } from "@/types/api";
 
@@ -55,138 +60,152 @@ export function TaskTable({
   emptyDescription?: string;
   maxRows?: number;
 }) {
-  if (tasks.length === 0) {
-    return <EmptyState title={emptyTitle} description={emptyDescription} />;
-  }
-
   const rows = maxRows ? tasks.slice(0, maxRows) : tasks;
-  const has = (c: TaskColumn) => columns.includes(c);
+  const wanted = new Set(columns);
+
+  const all: Record<TaskColumn, Column<TaskSummary>> = {
+    code: {
+      key: "code",
+      header: "Task",
+      mobile: "meta",
+      cell: (t) => <span className="font-mono text-2xs text-ink-500">{t.code}</span>,
+    },
+    name: {
+      key: "name",
+      header: "Description",
+      mobile: "primary",
+      className: "max-w-[22rem]",
+      cell: (t) => (
+        <>
+          <div className="flex items-center gap-1.5">
+            <span className="truncate font-medium text-ink-900" title={t.name}>
+              {t.name}
+            </span>
+            {t.blocker_reason && (
+              <AlertTriangle
+                className="h-3.5 w-3.5 shrink-0 text-rag-red"
+                aria-label="Blocked"
+              />
+            )}
+          </div>
+          <span className="text-2xs text-ink-400">{t.task_type}</span>
+        </>
+      ),
+    },
+    project: {
+      key: "project",
+      header: "Project",
+      mobile: "meta",
+      cell: (t) => <span className="text-xs text-ink-600">{t.project_code ?? DASH}</span>,
+    },
+    assignee: {
+      key: "assignee",
+      header: "Assignee",
+      mobile: "field",
+      cell: (t) =>
+        t.assigned_to_name ? (
+          <span className="flex items-center gap-1.5">
+            <Avatar name={t.assigned_to_name} />
+            <span className="truncate text-xs">{t.assigned_to_name}</span>
+          </span>
+        ) : (
+          <span className="text-xs text-ink-400">Unassigned</span>
+        ),
+    },
+    status: {
+      key: "status",
+      header: "Status",
+      mobile: "field",
+      cell: (t) => <StatusBadge status={t.status} />,
+    },
+    priority: {
+      key: "priority",
+      header: "Priority",
+      mobile: "field",
+      cell: (t) => <PriorityLabel priority={t.priority} />,
+    },
+    due: {
+      key: "due",
+      header: "Due",
+      mobile: "field",
+      cell: (t) => (
+        <span
+          className={clsx(
+            "text-xs",
+            t.is_overdue ? "font-medium text-rag-red" : "text-ink-600",
+          )}
+        >
+          {shortDate(t.planned_end)}
+        </span>
+      ),
+    },
+    progress: {
+      key: "progress",
+      header: "Progress",
+      mobile: "field",
+      headerClassName: "w-32",
+      cell: (t) => (
+        <ProgressBar
+          value={t.completion_percent}
+          tone={t.is_overdue ? "amber" : "neutral"}
+        />
+      ),
+    },
+    hours: {
+      key: "hours",
+      header: "Est / Act",
+      align: "right",
+      mobile: "field",
+      cell: (t) => (
+        <span className="text-xs tabular">
+          <span className="text-ink-500">{hours(t.estimated_hours)}</span>
+          <span className="mx-1 text-ink-300">/</span>
+          <span
+            className={clsx(
+              t.actual_hours > t.estimated_hours && t.estimated_hours > 0
+                ? "font-medium text-rag-amber"
+                : "text-ink-800",
+            )}
+          >
+            {hours(t.actual_hours)}
+          </span>
+        </span>
+      ),
+    },
+    delay: {
+      key: "delay",
+      header: "Delay",
+      mobile: "field",
+      cell: (t) =>
+        t.delay_days > 0 ? (
+          <span className="text-xs font-medium text-rag-red">{t.delay_days}d</span>
+        ) : (
+          <span className="text-xs text-ink-400">{DASH}</span>
+        ),
+    },
+  };
+
+  const ordered = (
+    ["code", "name", "project", "assignee", "status", "priority", "due", "progress", "hours", "delay"] as TaskColumn[]
+  )
+    .filter((key) => wanted.has(key))
+    .map((key) => all[key]);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px]">
-        <thead className="border-b border-ink-200 bg-ink-50">
-          <tr>
-            {has("code") && <th className="th">Task</th>}
-            {has("name") && <th className="th">Description</th>}
-            {has("project") && <th className="th">Project</th>}
-            {has("assignee") && <th className="th">Assignee</th>}
-            {has("status") && <th className="th">Status</th>}
-            {has("priority") && <th className="th">Priority</th>}
-            {has("due") && <th className="th">Due</th>}
-            {has("progress") && <th className="th w-32">Progress</th>}
-            {has("hours") && <th className="th text-right">Est / Act</th>}
-            {has("delay") && <th className="th">Delay</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-ink-100">
-          {rows.map((task) => (
-            <tr
-              key={task.id}
-              className={clsx(
-                "hover:bg-ink-50",
-                onSelect && "cursor-pointer",
-                task.is_overdue && "bg-rag-redBg/30",
-              )}
-              onClick={onSelect ? () => onSelect(task) : undefined}
-            >
-              {has("code") && (
-                <td className="td font-mono text-2xs text-ink-500">{task.code}</td>
-              )}
-              {has("name") && (
-                <td className="td max-w-[22rem]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="truncate font-medium text-ink-900" title={task.name}>
-                      {task.name}
-                    </span>
-                    {task.blocker_reason && (
-                      <AlertTriangle
-                        className="h-3.5 w-3.5 shrink-0 text-rag-red"
-                        aria-label="Blocked"
-                      />
-                    )}
-                  </div>
-                  <span className="text-2xs text-ink-400">{task.task_type}</span>
-                </td>
-              )}
-              {has("project") && (
-                <td className="td text-xs text-ink-600">{task.project_code ?? DASH}</td>
-              )}
-              {has("assignee") && (
-                <td className="td">
-                  {task.assigned_to_name ? (
-                    <span className="flex items-center gap-1.5">
-                      <Avatar name={task.assigned_to_name} />
-                      <span className="text-xs">{task.assigned_to_name}</span>
-                    </span>
-                  ) : (
-                    <span className="text-xs text-ink-400">Unassigned</span>
-                  )}
-                </td>
-              )}
-              {has("status") && (
-                <td className="td">
-                  <StatusBadge status={task.status} />
-                </td>
-              )}
-              {has("priority") && (
-                <td className="td">
-                  <PriorityLabel priority={task.priority} />
-                </td>
-              )}
-              {has("due") && (
-                <td
-                  className={clsx(
-                    "td text-xs",
-                    task.is_overdue ? "font-medium text-rag-red" : "text-ink-600",
-                  )}
-                >
-                  {shortDate(task.planned_end)}
-                </td>
-              )}
-              {has("progress") && (
-                <td className="td">
-                  <ProgressBar
-                    value={task.completion_percent}
-                    tone={task.is_overdue ? "amber" : "brand"}
-                  />
-                </td>
-              )}
-              {has("hours") && (
-                <td className="td text-right text-xs tabular">
-                  <span className="text-ink-500">{hours(task.estimated_hours)}</span>
-                  <span className="mx-1 text-ink-300">/</span>
-                  <span
-                    className={clsx(
-                      task.actual_hours > task.estimated_hours && task.estimated_hours > 0
-                        ? "font-medium text-rag-amber"
-                        : "text-ink-800",
-                    )}
-                  >
-                    {hours(task.actual_hours)}
-                  </span>
-                </td>
-              )}
-              {has("delay") && (
-                <td className="td text-xs">
-                  {task.delay_days > 0 ? (
-                    <span className="font-medium text-rag-red">
-                      {task.delay_days}d
-                    </span>
-                  ) : (
-                    <span className="text-ink-400">{DASH}</span>
-                  )}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {maxRows && tasks.length > maxRows && (
-        <p className="border-t border-ink-100 px-3 py-2 text-2xs text-ink-500">
-          Showing {maxRows} of {tasks.length}
-        </p>
-      )}
-    </div>
+    <ResponsiveTable
+      rows={rows}
+      columns={ordered}
+      rowKey={(t) => t.id}
+      onRowClick={onSelect}
+      minWidth="44rem"
+      empty={<EmptyState title={emptyTitle} description={emptyDescription} />}
+      footer={
+        maxRows && tasks.length > maxRows ? (
+          <p className="border-t border-ink-100 px-3 py-2 text-2xs text-ink-500">
+            Showing {maxRows} of {tasks.length}
+          </p>
+        ) : undefined
+      }
+    />
   );
 }

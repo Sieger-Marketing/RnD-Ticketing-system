@@ -125,9 +125,9 @@ export default function Timesheet() {
       />
 
       {running.data && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-signal-200 bg-signal-50 px-4 py-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-2 w-2 animate-pulse rounded-full bg-brand-600" />
+            <span className="flex h-2 w-2 animate-pulse rounded-full bg-signal-600" />
             <div>
               <p className="text-sm font-medium text-ink-900">
                 Timer running on {running.data.task_code}
@@ -136,7 +136,7 @@ export default function Timesheet() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="font-mono text-lg tabular text-brand-700">{elapsed}</span>
+            <span className="font-mono text-lg tabular text-signal-700">{elapsed}</span>
             <button
               type="button"
               className="btn-danger px-2 py-1"
@@ -239,13 +239,13 @@ export default function Timesheet() {
                 {rows.map((entry) => (
                   <tr
                     key={entry.id}
-                    className={entry.is_running ? "bg-brand-50" : "hover:bg-ink-50"}
+                    className={entry.is_running ? "bg-signal-50" : "hover:bg-ink-50"}
                   >
                     <td className="td text-xs">{shortDate(entry.entry_date)}</td>
                     <td className="td max-w-[20rem]">
                       <Link
                         to={`/tasks/${entry.task_id}`}
-                        className="truncate text-xs text-brand-600 hover:underline"
+                        className="truncate text-xs text-signal-700 hover:underline"
                       >
                         {entry.task_name}
                       </Link>
@@ -255,7 +255,7 @@ export default function Timesheet() {
                     </td>
                     <td className="td text-right text-xs tabular">
                       {entry.is_running ? (
-                        <span className="text-brand-600">running</span>
+                        <span className="text-signal-700">running</span>
                       ) : (
                         hours(entry.hours)
                       )}
@@ -302,7 +302,7 @@ export default function Timesheet() {
                 </span>
                 <div className="h-3 flex-1 overflow-hidden rounded bg-ink-100">
                   <div
-                    className="h-full rounded bg-brand-500"
+                    className="h-full rounded bg-signal-500"
                     style={{ width: `${Math.min(100, (dayHours / 8) * 100)}%` }}
                   />
                 </div>

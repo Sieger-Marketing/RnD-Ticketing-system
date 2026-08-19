@@ -307,7 +307,7 @@ export default function ProjectDetail() {
                               ? "red"
                               : release.health === "AMBER"
                                 ? "amber"
-                                : "brand"
+                                : "neutral"
                           }
                         />
                       </td>

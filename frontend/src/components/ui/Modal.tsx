@@ -50,7 +50,7 @@ export function Modal({
   }[size];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink-900/40 p-4 sm:p-8">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-ink-900/40 sm:items-start sm:p-8">
       <div
         className="fixed inset-0"
         onClick={onClose}
@@ -60,11 +60,14 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={clsx(
-          "relative z-10 w-full rounded-lg bg-white shadow-pop",
+          // A phone gets a bottom sheet: it opens next to the thumb and can be
+          // dismissed downward, rather than a small box floating mid-screen.
+          "relative z-10 flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-pop",
+          "sm:max-h-[90vh] sm:rounded-lg",
           width,
         )}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-ink-200 px-5 py-3">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-ink-200 px-4 py-3 sm:px-5">
           <div>
             <h2 className="text-sm font-semibold text-ink-900">{title}</h2>
             {description && (
@@ -81,10 +84,10 @@ export function Modal({
           </button>
         </header>
 
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">{children}</div>
 
         {footer && (
-          <footer className="flex items-center justify-end gap-2 border-t border-ink-200 px-5 py-3">
+          <footer className="flex flex-col-reverse gap-2 border-t border-ink-200 px-4 py-3 pb-safe sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pb-3">
             {footer}
           </footer>
         )}

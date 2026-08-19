@@ -50,10 +50,10 @@ const COLUMN_TARGET: Record<string, TaskStatus> = {
 
 const COLUMN_ACCENT: Record<string, string> = {
   not_started: "border-t-ink-300",
-  assigned: "border-t-blue-400",
-  in_progress: "border-t-brand-500",
+  assigned: "border-t-ink-400",
+  in_progress: "border-t-ink-700",
   blocked: "border-t-rag-red",
-  review: "border-t-purple-400",
+  review: "border-t-rag-amber",
   revision: "border-t-rag-amber",
   completed: "border-t-rag-green",
 };
@@ -182,7 +182,7 @@ export default function Kanban() {
                 <List className="h-3.5 w-3.5" />
                 List
               </Link>
-              <span className="btn bg-brand-600 px-2 py-1 text-white">
+              <span className="btn bg-ink-900 px-2 py-1 text-white">
                 <LayoutGrid className="h-3.5 w-3.5" />
                 Board
               </span>
@@ -213,15 +213,15 @@ export default function Kanban() {
       )}
 
       {board.data && (
-        <div className="flex gap-3 overflow-x-auto pb-4">
+        <div className="snap-columns -mx-3 flex gap-3 overflow-x-auto px-3 pb-4 sm:mx-0 sm:px-0">
           {board.data.columns.map((column) => (
             <div
               key={column.key}
               className={clsx(
-                "flex w-64 shrink-0 flex-col rounded-lg border border-t-2 bg-ink-100/60 transition-colors",
+                "snap-column flex w-[78vw] max-w-[17rem] shrink-0 flex-col rounded-lg border border-t-2 bg-cream-100 transition-colors sm:w-64",
                 COLUMN_ACCENT[column.key] ?? "border-t-ink-300",
                 hoverColumn === column.key
-                  ? "border-brand-400 bg-brand-50"
+                  ? "border-signal-400 bg-signal-50"
                   : "border-ink-200",
               )}
               onDragOver={(e) => {
@@ -262,7 +262,7 @@ export default function Kanban() {
                     }}
                     onClick={() => navigate(`/tasks/${task.id}`)}
                     className={clsx(
-                      "cursor-pointer rounded-md border bg-white p-2 shadow-sm transition-opacity hover:border-brand-300",
+                      "cursor-pointer rounded-md border bg-white p-2 shadow-sm transition-opacity hover:border-signal-300",
                       dragging?.id === task.id ? "opacity-40" : "opacity-100",
                       task.is_overdue ? "border-rag-red/40" : "border-ink-200",
                     )}

@@ -27,6 +27,7 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
+import siegerLogo from "@/assets/sieger-logo.png";
 import { Avatar, Spinner } from "@/components/ui/primitives";
 import {
   useMarkAllRead,
@@ -155,13 +156,13 @@ function NotificationBell() {
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute right-0 z-20 mt-1 w-80 rounded-lg border border-ink-200 bg-white shadow-pop">
+          <div className="absolute right-0 z-20 mt-1 w-[min(20rem,calc(100vw-1.5rem))] rounded-lg border border-ink-200 bg-white shadow-pop">
             <div className="flex items-center justify-between border-b border-ink-200 px-3 py-2">
               <span className="text-xs font-semibold text-ink-800">Notifications</span>
               {unread > 0 && (
                 <button
                   type="button"
-                  className="text-xs text-brand-600 hover:underline disabled:opacity-50"
+                  className="text-xs text-signal-700 hover:underline disabled:opacity-50"
                   onClick={() => markAll.mutate()}
                   disabled={markAll.isPending}
                 >
@@ -185,7 +186,7 @@ function NotificationBell() {
                   key={n.id}
                   className={clsx(
                     "border-b border-ink-100 px-3 py-2 last:border-0",
-                    !n.is_read && "bg-brand-50/40",
+                    !n.is_read && "bg-signal-50/50",
                   )}
                 >
                   <div className="flex items-start gap-2">
@@ -196,7 +197,7 @@ function NotificationBell() {
                           ? "bg-rag-red"
                           : n.severity === "Warning"
                             ? "bg-rag-amber"
-                            : "bg-brand-500",
+                            : "bg-signal-500",
                       )}
                     />
                     <div className="min-w-0">
@@ -250,16 +251,16 @@ function RunningTimer() {
   const m = Math.floor((seconds % 3600) / 60);
 
   return (
-    <div className="flex items-center gap-2 rounded-md border border-brand-200 bg-brand-50 px-2 py-1">
-      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-brand-600" />
+    <div className="flex items-center gap-2 rounded-md border border-signal-200 bg-signal-50 px-2 py-1">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-signal-600" />
       <Link
         to={`/tasks/${data.task_id}`}
-        className="max-w-[9rem] truncate text-xs text-brand-700 hover:underline"
+        className="hidden max-w-[9rem] truncate text-xs text-signal-700 hover:underline sm:block"
         title={data.task_name ?? undefined}
       >
         {data.task_code}
       </Link>
-      <span className="font-mono text-xs tabular text-brand-700">
+      <span className="font-mono text-xs tabular text-signal-700">
         {h}:{String(m).padStart(2, "0")}
       </span>
       <button
@@ -327,16 +328,28 @@ export default function AppLayout() {
     <div className="flex h-full">
       <aside
         className={clsx(
-          "fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-ink-200 bg-white transition-transform lg:static lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex w-[17rem] max-w-[85vw] flex-col border-r border-ink-200 bg-white transition-transform lg:static lg:z-30 lg:w-60 lg:max-w-none lg:translate-x-0 lg:shadow-none",
+          mobileOpen ? "shadow-pop" : "",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
         <div className="flex h-14 items-center justify-between border-b border-ink-200 px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded bg-brand-600 text-xs font-bold text-white">
-              DO
+          <Link to="/" className="flex min-w-0 items-center gap-2">
+            <img
+              src={siegerLogo}
+              alt="Sieger"
+              className="h-7 w-auto shrink-0"
+              width={1533}
+              height={525}
+            />
+            <span className="min-w-0 border-l border-ink-200 pl-2">
+              <span className="block truncate font-display text-xs font-semibold leading-tight text-ink-900">
+                Design Ops
+              </span>
+              <span className="block truncate text-[10px] leading-tight text-signal-700">
+                Partnering Progress
+              </span>
             </span>
-            <span className="text-sm font-semibold text-ink-900">Design Ops</span>
           </Link>
           <button
             type="button"
@@ -360,9 +373,9 @@ export default function AppLayout() {
                   to={item.to}
                   className={({ isActive }) =>
                     clsx(
-                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                      "flex items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors lg:py-1.5",
                       isActive
-                        ? "bg-brand-50 font-medium text-brand-700"
+                        ? "bg-signal-50 font-medium text-signal-700"
                         : "text-ink-700 hover:bg-ink-100",
                     )
                   }
@@ -406,17 +419,26 @@ export default function AppLayout() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-ink-200 bg-white px-4">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-ink-200 bg-white px-3 sm:px-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
-              className="btn-ghost px-1.5 lg:hidden"
+              className="btn-ghost px-2 lg:hidden"
               onClick={() => setMobileOpen(true)}
               aria-label="Open navigation"
             >
-              <Menu className="h-4 w-4" />
+              <Menu className="h-5 w-5" />
             </button>
-            <Breadcrumbs />
+            <div className="hidden sm:block">
+              <Breadcrumbs />
+            </div>
+            <img
+              src={siegerLogo}
+              alt="Sieger"
+              className="h-6 w-auto sm:hidden"
+              width={1533}
+              height={525}
+            />
           </div>
           <div className="flex items-center gap-2">
             <RunningTimer />
@@ -424,7 +446,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="min-w-0 flex-1 overflow-y-auto p-3 pb-safe sm:p-4 lg:p-6">
           <Outlet />
         </main>
       </div>

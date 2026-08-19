@@ -105,7 +105,7 @@ export default function ReleaseDetail() {
         </Link>
         <Link
           to={`/projects/${r.project_id}`}
-          className="text-xs text-brand-600 hover:underline"
+          className="text-xs text-signal-700 hover:underline"
         >
           {r.project_code} · {r.project_name}
         </Link>
@@ -264,7 +264,7 @@ export default function ReleaseDetail() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="flex items-center gap-1.5 text-sm font-medium text-ink-900">
-                  <Sparkles className="h-3.5 w-3.5 text-brand-600" />
+                  <Sparkles className="h-3.5 w-3.5 text-signal-700" />
                   {suggestion.data.suggested.template_name} v
                   {suggestion.data.suggested.version_number}
                 </p>

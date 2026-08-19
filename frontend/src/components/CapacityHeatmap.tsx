@@ -25,7 +25,7 @@ function bandFor(
 
 const CELL_STYLE: Record<UtilizationBand, string> = {
   "No Data": "bg-ink-50 text-ink-300",
-  Underutilized: "bg-blue-50 text-blue-700",
+  Underutilized: "bg-cream-300 text-ink-700",
   Healthy: "bg-rag-greenBg text-rag-green",
   "High Load": "bg-rag-amberBg text-rag-amber",
   Overloaded: "bg-rag-redBg text-rag-red font-semibold",
@@ -45,7 +45,7 @@ export function CapacityHeatmap({
   const days = rows[0]?.daily ?? [];
 
   return (
-    <div className="overflow-x-auto">
+    <div className="table-scroll">
       <table className="w-full min-w-[720px] border-separate border-spacing-0">
         <thead>
           <tr>

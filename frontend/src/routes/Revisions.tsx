@@ -127,7 +127,7 @@ export default function Revisions() {
               type="button"
               className={`rounded-full border px-2 py-0.5 text-2xs transition-colors ${
                 accountability === value
-                  ? "border-brand-600 bg-brand-600 text-white"
+                  ? "border-ink-900 bg-ink-900 text-white"
                   : "border-ink-300 bg-white text-ink-600 hover:bg-ink-100"
               }`}
               onClick={() =>
@@ -218,7 +218,7 @@ export default function Revisions() {
                             className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-2xs font-medium ${
                               revision.accountability === "Controllable"
                                 ? "bg-rag-amberBg text-rag-amber"
-                                : "bg-blue-50 text-blue-700"
+                                : "bg-cream-300 text-ink-700"
                             }`}
                           >
                             {revision.accountability}

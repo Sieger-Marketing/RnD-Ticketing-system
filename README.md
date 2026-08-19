@@ -148,6 +148,34 @@ frontend/
     routes/        screens
 ```
 
+### Branding
+
+Sieger's guideline permits three colours: Signal Red `#9B2423`, Standard Black
+and Cream `#F3ECE0`. Two decisions follow from applying that to a dashboard,
+and both live in `tailwind.config.js`:
+
+* **Signal Red is reserved for signals** — critical status, destructive
+  actions and the brand mark. Primary buttons are black, so a red control and
+  a red status never mean two different things on one screen.
+* **RAG health is kept**, because spec section 21 mandates GREEN / AMBER / RED
+  by name and a health engine cannot speak in three colours. The greens and
+  ambers are desaturated to sit against cream, and RED *is* Signal Red.
+
+Effra is the brand face but is licensed and not on Google Fonts, so the
+approved web fallback is used: Poppins for display, Sora for interface text.
+
+### Responsive behaviour
+
+The application is used on phones as well as desks, so:
+
+* `ResponsiveTable` renders a table above `md` and a card per row below it.
+  Ten columns of task data cannot be read by scrolling sideways — the row you
+  are reading leaves the screen before the column you want arrives.
+* Genuinely wide analytical grids (capacity heatmap, release timeline) still
+  scroll, but say so via `WideScroll` rather than hiding half the data.
+* Dialogs become bottom sheets on phones; the board's columns snap.
+* Inputs are 16px on touch devices, because iOS zooms the page below that.
+
 ### Frontend conventions
 
 * `types/api.ts` is the contract. If a field there disagrees with the API, the

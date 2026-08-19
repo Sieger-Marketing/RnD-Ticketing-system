@@ -86,7 +86,7 @@ export function ChipFilter({
             className={clsx(
               "rounded-full border px-2 py-0.5 text-2xs transition-colors",
               active
-                ? "border-brand-600 bg-brand-600 text-white"
+                ? "border-ink-900 bg-ink-900 text-white"
                 : "border-ink-300 bg-white text-ink-600 hover:bg-ink-100",
             )}
             onClick={() =>
@@ -104,7 +104,7 @@ export function ChipFilter({
       {selected.length > 0 && (
         <button
           type="button"
-          className="ml-1 text-2xs text-brand-600 hover:underline"
+          className="ml-1 text-2xs text-signal-700 hover:underline"
           onClick={() => onChange([])}
         >
           clear

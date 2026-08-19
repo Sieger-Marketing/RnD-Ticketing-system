@@ -11,6 +11,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { ProjectCreateModal } from "@/components/ProjectCreateModal";
 import { ChipFilter, FilterBar, Pagination, SearchInput } from "@/components/ui/Filters";
+import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
 import {
   EmptyState,
   ErrorState,
@@ -175,119 +176,152 @@ export default function Projects() {
         )}
 
         {data && data.items.length > 0 && (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px]">
-                <thead className="border-b border-ink-200 bg-ink-50">
-                  <tr>
-                    <th className="th">Project</th>
-                    <th className="th">Customer</th>
-                    <th className="th">Product</th>
-                    <th className="th">Status</th>
-                    <th className="th">Priority</th>
-                    <th className="th w-36">Completion</th>
-                    <th className="th text-right">Planned / Actual</th>
-                    <th className="th text-right">Variance</th>
-                    <th className="th">Due</th>
-                    <th className="th">Health</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink-100">
-                  {data.items.map((project) => (
-                    <tr
-                      key={project.id}
-                      className="cursor-pointer hover:bg-ink-50"
-                      onClick={() => navigate(`/projects/${project.id}`)}
+          <ResponsiveTable
+            rows={data.items}
+            rowKey={(p) => p.id}
+            onRowClick={(p) => navigate(`/projects/${p.id}`)}
+            minWidth="60rem"
+            columns={[
+              {
+                key: "name",
+                header: "Project",
+                mobile: "primary",
+                className: "max-w-[20rem]",
+                cell: (p) => (
+                  <div className="truncate font-medium text-ink-900" title={p.name}>
+                    {p.name}
+                  </div>
+                ),
+              },
+              {
+                key: "code",
+                header: "Code",
+                mobile: "meta",
+                cell: (p) => (
+                  <span className="font-mono text-2xs text-ink-400">
+                    {p.code}
+                    {p.release_count > 0 && (
+                      <span className="ml-2 font-sans">
+                        {p.release_count} release{p.release_count === 1 ? "" : "s"} ·{" "}
+                        {p.task_count} task{p.task_count === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: "customer",
+                header: "Customer",
+                mobile: "field",
+                cell: (p) => (
+                  <span className="text-xs text-ink-600">{p.customer_name ?? DASH}</span>
+                ),
+              },
+              {
+                key: "product",
+                header: "Product",
+                mobile: "field",
+                cell: (p) => (
+                  <span className="text-xs text-ink-600">{p.product_name ?? DASH}</span>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                mobile: "field",
+                cell: (p) => <StatusBadge status={p.status} />,
+              },
+              {
+                key: "priority",
+                header: "Priority",
+                mobile: "field",
+                cell: (p) => <PriorityLabel priority={p.priority} />,
+              },
+              {
+                key: "completion",
+                header: "Completion",
+                mobile: "field",
+                headerClassName: "w-36",
+                cell: (p) => (
+                  <ProgressBar
+                    value={p.completion_percent}
+                    tone={
+                      p.health === "RED"
+                        ? "red"
+                        : p.health === "AMBER"
+                          ? "amber"
+                          : "neutral"
+                    }
+                  />
+                ),
+              },
+              {
+                key: "hours",
+                header: "Planned / Actual",
+                align: "right",
+                mobile: "field",
+                cell: (p) => (
+                  <span className="text-xs tabular text-ink-600">
+                    {hours(p.planned_hours)} / {hours(p.actual_hours)}
+                  </span>
+                ),
+              },
+              {
+                key: "variance",
+                header: "Variance",
+                align: "right",
+                mobile: "field",
+                cell: (p) =>
+                  p.planned_hours > 0 ? (
+                    <span
+                      className={
+                        p.actual_hours > p.planned_hours
+                          ? "text-xs font-medium tabular text-rag-amber"
+                          : "text-xs tabular text-ink-600"
+                      }
                     >
-                      <td className="td max-w-[20rem]">
-                        <div className="truncate font-medium text-ink-900" title={project.name}>
-                          {project.name}
-                        </div>
-                        <div className="font-mono text-2xs text-ink-400">
-                          {project.code}
-                          {project.release_count > 0 && (
-                            <span className="ml-2 font-sans">
-                              {project.release_count} release
-                              {project.release_count === 1 ? "" : "s"} ·{" "}
-                              {project.task_count} task{project.task_count === 1 ? "" : "s"}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="td text-xs text-ink-600">
-                        {project.customer_name ?? DASH}
-                      </td>
-                      <td className="td text-xs text-ink-600">
-                        {project.product_name ?? DASH}
-                      </td>
-                      <td className="td">
-                        <StatusBadge status={project.status} />
-                      </td>
-                      <td className="td">
-                        <PriorityLabel priority={project.priority} />
-                      </td>
-                      <td className="td">
-                        <ProgressBar
-                          value={project.completion_percent}
-                          tone={
-                            project.health === "RED"
-                              ? "red"
-                              : project.health === "AMBER"
-                                ? "amber"
-                                : "brand"
-                          }
-                        />
-                      </td>
-                      <td className="td text-right text-xs tabular text-ink-600">
-                        {hours(project.planned_hours)} / {hours(project.actual_hours)}
-                      </td>
-                      <td className="td text-right text-xs tabular">
-                        {project.planned_hours > 0 ? (
-                          <span
-                            className={
-                              project.actual_hours > project.planned_hours
-                                ? "font-medium text-rag-amber"
-                                : "text-ink-600"
-                            }
-                          >
-                            {variance(project.actual_hours - project.planned_hours)}
-                          </span>
-                        ) : (
-                          <span className="text-ink-300">{DASH}</span>
-                        )}
-                      </td>
-                      <td className="td text-xs">
-                        <span
-                          className={
-                            project.delay_days > 0 ? "font-medium text-rag-red" : "text-ink-600"
-                          }
-                        >
-                          {shortDate(project.required_completion_date)}
-                        </span>
-                        {project.delay_days > 0 && (
-                          <span className="ml-1 text-2xs text-rag-red">
-                            +{project.delay_days}d
-                          </span>
-                        )}
-                      </td>
-                      <td className="td">
-                        <HealthPill health={project.health} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={data.page}
-              pages={data.pages}
-              total={data.total}
-              pageSize={data.page_size}
-              onPage={(next) =>
-                update((params) => params.set("page", String(next)))
-              }
-            />
-          </>
+                      {variance(p.actual_hours - p.planned_hours)}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-ink-300">{DASH}</span>
+                  ),
+              },
+              {
+                key: "due",
+                header: "Due",
+                mobile: "field",
+                cell: (p) => (
+                  <span className="text-xs">
+                    <span
+                      className={
+                        p.delay_days > 0 ? "font-medium text-rag-red" : "text-ink-600"
+                      }
+                    >
+                      {shortDate(p.required_completion_date)}
+                    </span>
+                    {p.delay_days > 0 && (
+                      <span className="ml-1 text-2xs text-rag-red">+{p.delay_days}d</span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: "health",
+                header: "Health",
+                mobile: "field",
+                cell: (p) => <HealthPill health={p.health} />,
+              },
+            ]}
+            footer={
+              <Pagination
+                page={data.page}
+                pages={data.pages}
+                total={data.total}
+                pageSize={data.page_size}
+                onPage={(next) => update((params) => params.set("page", String(next)))}
+              />
+            }
+          />
         )}
       </div>
 

@@ -85,7 +85,7 @@ export function ReleaseTimeline({
       <div className="relative space-y-1.5">
         {todayVisible && (
           <div
-            className="pointer-events-none absolute inset-y-0 z-10 w-px bg-brand-500"
+            className="pointer-events-none absolute inset-y-0 z-10 w-px bg-signal-500"
             style={{ left: `calc(14rem + ${(todayOffset / span) * 100}% * 0.7)` }}
             aria-hidden
           />

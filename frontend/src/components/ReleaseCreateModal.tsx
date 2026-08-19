@@ -289,7 +289,7 @@ export function ReleaseCreateModal({
                     }}
                     className={`flex w-full items-center justify-between gap-3 rounded-md border px-3 py-2 text-left transition-colors ${
                       isSelected
-                        ? "border-brand-500 bg-brand-50"
+                        ? "border-signal-500 bg-signal-50"
                         : "border-ink-200 hover:bg-ink-50"
                     }`}
                   >
@@ -298,7 +298,7 @@ export function ReleaseCreateModal({
                         {version.template}
                         <span className="font-normal text-ink-500">{version.label}</span>
                         {isSuggested && (
-                          <span className="inline-flex items-center gap-0.5 rounded-full bg-brand-100 px-1.5 py-0.5 text-2xs font-medium text-brand-700">
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-signal-100 px-1.5 py-0.5 text-2xs font-medium text-signal-700">
                             <Sparkles className="h-2.5 w-2.5" />
                             suggested
                           </span>
@@ -311,7 +311,7 @@ export function ReleaseCreateModal({
                       </p>
                     </div>
                     {isSelected && (
-                      <Check className="h-4 w-4 shrink-0 text-brand-600" />
+                      <Check className="h-4 w-4 shrink-0 text-signal-700" />
                     )}
                   </button>
                 );

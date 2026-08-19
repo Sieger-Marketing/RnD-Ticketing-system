@@ -20,6 +20,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { useIsNarrow } from "@/hooks/useIsNarrow";
 import { InsightList } from "@/components/InsightList";
 import {
   Card,
@@ -100,13 +101,22 @@ interface ExecutiveDashboardData {
   insights: Insight[];
 }
 
+/**
+ * Sieger palette for charts.
+ *
+ * Signal Red leads, Standard Black carries the second series and the
+ * functional greens and ambers only appear where they mean health. Series in
+ * the same chart must not share a colour, which rules out using the red twice
+ * even though status RED and the brand accent are the same value.
+ */
 const CHART_COLORS = {
-  brand: "#3363f5",
-  green: "#16a34a",
-  amber: "#d97706",
-  red: "#dc2626",
-  grid: "#e5e7eb",
-  axis: "#8494ab",
+  brand: "#9b2423",
+  ink: "#26231d",
+  green: "#3f6d44",
+  amber: "#8a6212",
+  red: "#9b2423",
+  grid: "#e2ddd4",
+  axis: "#948b7c",
 };
 
 const HEALTH_FILL: Record<Health, string> = {
@@ -116,6 +126,7 @@ const HEALTH_FILL: Record<Health, string> = {
 };
 
 export default function ExecutiveDashboard() {
+  const narrow = useIsNarrow();
   const { data, isLoading, isError, error, refetch } =
     useDashboard<ExecutiveDashboardData>("executive");
 
@@ -203,10 +214,16 @@ export default function ExecutiveDashboard() {
               Not enough completed work yet to plot a trend.
             </p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={narrow ? 220 : 260}>
               <BarChart data={data.monthly_output}>
                 <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
-                <XAxis dataKey="month" stroke={CHART_COLORS.axis} fontSize={11} />
+                <XAxis
+                  dataKey="month"
+                  stroke={CHART_COLORS.axis}
+                  fontSize={narrow ? 9 : 11}
+                  interval={narrow ? 1 : 0}
+                  tickFormatter={(m: string) => (narrow ? m.slice(2) : m)}
+                />
                 <YAxis stroke={CHART_COLORS.axis} fontSize={11} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{ fontSize: 12, borderRadius: 6 }}
@@ -222,7 +239,7 @@ export default function ExecutiveDashboard() {
                 <Bar
                   dataKey="releases_completed"
                   name="Releases completed"
-                  fill={CHART_COLORS.green}
+                  fill={CHART_COLORS.ink}
                   radius={[3, 3, 0, 0]}
                 />
               </BarChart>
@@ -236,10 +253,16 @@ export default function ExecutiveDashboard() {
           {data.monthly_output.length === 0 ? (
             <p className="py-10 text-center text-sm text-ink-500">No trend data yet.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={240}>
+            <ResponsiveContainer width="100%" height={narrow ? 210 : 240}>
               <LineChart data={data.monthly_output}>
                 <CartesianGrid stroke={CHART_COLORS.grid} vertical={false} />
-                <XAxis dataKey="month" stroke={CHART_COLORS.axis} fontSize={11} />
+                <XAxis
+                  dataKey="month"
+                  stroke={CHART_COLORS.axis}
+                  fontSize={narrow ? 9 : 11}
+                  interval={narrow ? 1 : 0}
+                  tickFormatter={(m: string) => (narrow ? m.slice(2) : m)}
+                />
                 <YAxis
                   stroke={CHART_COLORS.axis}
                   fontSize={11}
@@ -255,7 +278,7 @@ export default function ExecutiveDashboard() {
                   type="monotone"
                   dataKey="efficiency_percent"
                   name="Efficiency"
-                  stroke={CHART_COLORS.brand}
+                  stroke={CHART_COLORS.ink}
                   strokeWidth={2}
                   dot={false}
                   connectNulls
@@ -284,7 +307,7 @@ export default function ExecutiveDashboard() {
         </Card>
 
         <Card title="Portfolio health">
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={narrow ? 170 : 200}>
             <BarChart data={healthData} layout="vertical" margin={{ left: 8 }}>
               <CartesianGrid stroke={CHART_COLORS.grid} horizontal={false} />
               <XAxis type="number" stroke={CHART_COLORS.axis} fontSize={11} allowDecimals={false} />

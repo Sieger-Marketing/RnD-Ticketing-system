@@ -325,7 +325,7 @@ export default function Reviews() {
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-700">
                 <Link
                   to={`/tasks/${task.data.id}`}
-                  className="text-brand-600 hover:underline"
+                  className="text-signal-700 hover:underline"
                 >
                   Open the task
                 </Link>

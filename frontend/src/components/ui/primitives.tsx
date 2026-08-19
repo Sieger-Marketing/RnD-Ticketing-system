@@ -53,12 +53,20 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-semibold text-ink-900">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-ink-500">{subtitle}</p>}
+    <div className="mb-4 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="font-display text-lg font-semibold text-ink-900 sm:text-xl">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-0.5 text-xs text-ink-500 sm:text-sm">{subtitle}</p>
+        )}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 [&>*]:flex-1 sm:[&>*]:flex-none">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
@@ -69,11 +77,11 @@ export function PageHeader({
 
 const TASK_STATUS_STYLES: Record<TaskStatus, string> = {
   "Not Started": "bg-ink-100 text-ink-700",
-  Assigned: "bg-blue-50 text-blue-700",
-  "In Progress": "bg-brand-50 text-brand-700",
+  Assigned: "bg-cream-300 text-ink-700",
+  "In Progress": "bg-signal-50 text-signal-700",
   Blocked: "bg-rag-redBg text-rag-red",
-  "Submitted for Review": "bg-purple-50 text-purple-700",
-  "Under Review": "bg-purple-100 text-purple-800",
+  "Submitted for Review": "bg-rag-amberBg text-rag-amber",
+  "Under Review": "bg-rag-amberBg text-rag-amber",
   "Revision Required": "bg-rag-amberBg text-rag-amber",
   Approved: "bg-rag-greenBg text-rag-green",
   Completed: "bg-rag-greenBg text-rag-green",
@@ -82,21 +90,21 @@ const TASK_STATUS_STYLES: Record<TaskStatus, string> = {
 
 const GENERIC_STATUS_STYLES: Record<string, string> = {
   Draft: "bg-ink-100 text-ink-700",
-  Planning: "bg-blue-50 text-blue-700",
-  "In Progress": "bg-brand-50 text-brand-700",
-  "Design In Progress": "bg-brand-50 text-brand-700",
-  "Internal Review": "bg-purple-50 text-purple-700",
-  "Customer Review": "bg-purple-50 text-purple-700",
+  Planning: "bg-cream-300 text-ink-700",
+  "In Progress": "bg-signal-50 text-signal-700",
+  "Design In Progress": "bg-signal-50 text-signal-700",
+  "Internal Review": "bg-rag-amberBg text-rag-amber",
+  "Customer Review": "bg-rag-amberBg text-rag-amber",
   Revision: "bg-rag-amberBg text-rag-amber",
   Approved: "bg-rag-greenBg text-rag-green",
   Completed: "bg-rag-greenBg text-rag-green",
   "On Hold": "bg-ink-200 text-ink-700",
   Cancelled: "bg-ink-100 text-ink-400 line-through",
   "Not Started": "bg-ink-100 text-ink-700",
-  Assigned: "bg-blue-50 text-blue-700",
+  Assigned: "bg-cream-300 text-ink-700",
   Open: "bg-rag-amberBg text-rag-amber",
   Resolved: "bg-rag-greenBg text-rag-green",
-  Pending: "bg-purple-50 text-purple-700",
+  Pending: "bg-rag-amberBg text-rag-amber",
 };
 
 export function StatusBadge({ status }: { status: string }) {
@@ -148,7 +156,7 @@ export function PriorityLabel({ priority }: { priority: Priority }) {
 }
 
 const BAND_STYLES: Record<UtilizationBand, string> = {
-  Underutilized: "bg-blue-50 text-blue-700",
+  Underutilized: "bg-cream-300 text-ink-700",
   Healthy: "bg-rag-greenBg text-rag-green",
   "High Load": "bg-rag-amberBg text-rag-amber",
   Overloaded: "bg-rag-redBg text-rag-red",
@@ -181,14 +189,14 @@ export function UtilizationBadge({
 
 export function ProgressBar({
   value,
-  tone = "brand",
+  tone = "neutral",
 }: {
   value: number;
-  tone?: "brand" | "green" | "amber" | "red";
+  tone?: "neutral" | "green" | "amber" | "red";
 }) {
   const clamped = Math.max(0, Math.min(100, value));
   const toneClass = {
-    brand: "bg-brand-500",
+    neutral: "bg-ink-700",
     green: "bg-rag-green",
     amber: "bg-rag-amber",
     red: "bg-rag-red",
@@ -350,7 +358,7 @@ export function InlineAlert({
     warn: { cls: "bg-rag-amberBg text-rag-amber", Icon: AlertTriangle },
     error: { cls: "bg-rag-redBg text-rag-red", Icon: AlertCircle },
     success: { cls: "bg-rag-greenBg text-rag-green", Icon: CheckCircle2 },
-    info: { cls: "bg-brand-50 text-brand-700", Icon: AlertCircle },
+    info: { cls: "bg-signal-50 text-signal-700", Icon: AlertCircle },
   }[tone];
   const { Icon } = config;
   return (

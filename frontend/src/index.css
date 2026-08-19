@@ -5,6 +5,8 @@
 @layer base {
   :root {
     color-scheme: light;
+    /* Honour the notch on phones so nothing hides under the status bar. */
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   html,
@@ -14,19 +16,36 @@
   }
 
   body {
-    @apply bg-ink-50 text-ink-900 antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "tnum";
+    @apply bg-cream-200 font-sans text-ink-800 antialiased;
+    font-feature-settings: "tnum";
+    -webkit-tap-highlight-color: transparent;
   }
 
-  /* Tabular figures everywhere numbers are compared down a column, which is
-     most of this application. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  /* Numbers are compared down a column on nearly every screen here. */
   table,
   .tabular {
     font-variant-numeric: tabular-nums;
   }
 
   :focus-visible {
-    @apply outline-none ring-2 ring-brand-500 ring-offset-1 ring-offset-white;
+    @apply outline-none ring-2 ring-signal-600 ring-offset-1 ring-offset-white;
+  }
+
+  /* iOS zooms the page when a focused input is under 16px. Dense tables want
+     small text, so the size is raised only on touch devices, where the zoom
+     would otherwise fight the user on every filter box. */
+  @media (hover: none) and (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
   }
 }
 
@@ -36,17 +55,17 @@
   }
 
   .card-header {
-    @apply flex items-center justify-between gap-3 border-b border-ink-200 px-4 py-3;
+    @apply flex flex-wrap items-center justify-between gap-2 border-b border-ink-200 px-3 py-2.5 sm:px-4 sm:py-3;
   }
 
   .card-title {
-    @apply text-sm font-semibold text-ink-900;
+    @apply font-display text-sm font-semibold text-ink-900;
   }
 
   .input {
     @apply w-full rounded-md border border-ink-300 bg-white px-3 py-2 text-sm
       text-ink-900 placeholder:text-ink-400
-      focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
+      focus:border-signal-600 focus:outline-none focus:ring-1 focus:ring-signal-600
       disabled:cursor-not-allowed disabled:bg-ink-100;
   }
 
@@ -54,26 +73,31 @@
     @apply mb-1 block text-xs font-medium text-ink-700;
   }
 
+  /* min-h-[2.75rem] on touch: 44px is the smallest comfortably tappable
+     target, and these buttons sit close together in table rows. */
   .btn {
     @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2
       text-sm font-medium transition-colors
-      disabled:cursor-not-allowed disabled:opacity-50;
+      disabled:cursor-not-allowed disabled:opacity-50
+      [@media(pointer:coarse)]:min-h-[2.75rem];
   }
 
+  /* Primary actions are black. Signal Red is kept for signals -- critical
+     status and destructive intent -- so the two never blur together. */
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-ink-900 text-white hover:bg-ink-800;
   }
 
   .btn-secondary {
-    @apply btn border border-ink-300 bg-white text-ink-800 hover:bg-ink-50;
+    @apply btn border border-ink-300 bg-white text-ink-800 hover:bg-cream-100;
   }
 
   .btn-ghost {
-    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900;
+    @apply btn text-ink-600 hover:bg-cream-200 hover:text-ink-900;
   }
 
   .btn-danger {
-    @apply btn bg-rag-red text-white hover:bg-red-700;
+    @apply btn bg-signal-600 text-white hover:bg-signal-700;
   }
 
   .th {
@@ -83,5 +107,32 @@
 
   .td {
     @apply whitespace-nowrap px-3 py-2 text-sm text-ink-800;
+  }
+
+  /* Wide tables scroll inside their own container rather than pushing the
+     page sideways. Paired with .scroll-hint below so it is discoverable. */
+  .table-scroll {
+    @apply -mx-3 overflow-x-auto px-3 sm:mx-0 sm:px-0;
+    scrollbar-width: thin;
+  }
+
+  .scroll-hint {
+    @apply px-3 pb-2 text-2xs text-ink-400 sm:hidden;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: calc(0.75rem + var(--safe-bottom));
+  }
+
+  /* Horizontal card lists (the board) should settle on a column rather than
+     stopping between two. */
+  .snap-columns {
+    scroll-snap-type: x mandatory;
+  }
+
+  .snap-column {
+    scroll-snap-align: start;
   }
 }

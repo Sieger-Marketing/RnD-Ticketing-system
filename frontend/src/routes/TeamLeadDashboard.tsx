@@ -193,7 +193,7 @@ export default function TeamLeadDashboard() {
                             ? "red"
                             : release.health === "AMBER"
                               ? "amber"
-                              : "brand"
+                              : "neutral"
                         }
                       />
                     </div>

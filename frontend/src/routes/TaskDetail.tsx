@@ -173,10 +173,10 @@ export default function TaskDetail() {
           <ArrowLeft className="h-3.5 w-3.5" />
           All tasks
         </Link>
-        <Link to={`/releases/${t.release_id}`} className="text-xs text-brand-600 hover:underline">
+        <Link to={`/releases/${t.release_id}`} className="text-xs text-signal-700 hover:underline">
           {t.release_code}
         </Link>
-        <Link to={`/projects/${t.project_id}`} className="text-xs text-brand-600 hover:underline">
+        <Link to={`/projects/${t.project_id}`} className="text-xs text-signal-700 hover:underline">
           {t.project_code}
         </Link>
       </div>
@@ -405,12 +405,12 @@ export default function TaskDetail() {
                 </thead>
                 <tbody className="divide-y divide-ink-100">
                   {entries.data.items.map((entry) => (
-                    <tr key={entry.id} className={entry.is_running ? "bg-brand-50" : undefined}>
+                    <tr key={entry.id} className={entry.is_running ? "bg-signal-50" : undefined}>
                       <td className="td text-xs">{shortDate(entry.entry_date)}</td>
                       <td className="td text-xs">{entry.user_name}</td>
                       <td className="td text-right text-xs tabular">
                         {entry.is_running ? (
-                          <span className="text-brand-600">running…</span>
+                          <span className="text-signal-700">running…</span>
                         ) : (
                           hours(entry.hours)
                         )}

@@ -188,7 +188,7 @@ export default function Releases() {
                               ? "red"
                               : release.health === "AMBER"
                                 ? "amber"
-                                : "brand"
+                                : "neutral"
                           }
                         />
                       </td>
