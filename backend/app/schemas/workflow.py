@@ -285,6 +285,9 @@ class TemplateTaskIn(BaseModel):
     is_mandatory: bool = True
     requires_review: bool = True
     depends_on_sequence: int | None = Field(None, gt=0)
+    #: False makes the prerequisite advisory: the dependency is still
+    #: recorded and shown, but it does not prevent the task starting.
+    depends_on_blocking: bool = True
 
 
 class TemplateTaskOut(TemplateTaskIn):

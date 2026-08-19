@@ -122,6 +122,9 @@ def create_draft_version(
                     is_mandatory=task.is_mandatory,
                     requires_review=task.requires_review,
                     depends_on_sequence=task.depends_on_sequence,
+                    # Easy to forget, and forgetting it silently re-gates every
+                    # dependency the previous version had deliberately relaxed.
+                    depends_on_blocking=task.depends_on_blocking,
                 )
             )
         db.flush()
@@ -247,7 +250,12 @@ def generate_tasks_for_release(
             continue
         db.add(
             TaskDependency(
-                task_id=child.id, depends_on_task_id=parent.id, is_blocking=True
+                task_id=child.id,
+                depends_on_task_id=parent.id,
+                # Carried from the template rather than forced. An advisory
+                # link still shows the intended order on the task screen; it
+                # just does not refuse the start.
+                is_blocking=template_task.depends_on_blocking,
             )
         )
 

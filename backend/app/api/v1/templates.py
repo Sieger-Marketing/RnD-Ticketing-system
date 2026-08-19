@@ -55,6 +55,7 @@ def _version_out(version: DesignTemplateVersion, with_tasks: bool = True) -> Tem
                 is_mandatory=t.is_mandatory,
                 requires_review=t.requires_review,
                 depends_on_sequence=t.depends_on_sequence,
+                depends_on_blocking=t.depends_on_blocking,
                 required_skill_name=t.required_skill.name if t.required_skill else None,
             )
             for t in version.tasks

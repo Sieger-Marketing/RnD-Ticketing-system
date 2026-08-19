@@ -218,14 +218,37 @@ class TestTimeIntegrity:
 
 class TestWorkflowIntegrity:
     def test_a_task_cannot_start_before_its_prerequisites(self, sandbox, lead, designer):
-        """The dependency chain must actually block execution."""
-        second = sandbox["tasks"][1]
+        """A blocking dependency must actually block execution.
+
+        The dependency is created explicitly rather than relying on whichever
+        links the template chose to gate: templates now mark most successors
+        advisory, and a test that silently stops exercising its own rule is
+        worse than no test.
+        """
+        first, second = sandbox["tasks"][0], sandbox["tasks"][1]
+        lead.post(
+            f"/api/tasks/{second['id']}/dependencies",
+            json={"depends_on_task_id": first["id"], "is_blocking": True},
+        )
         lead.post(f"/api/tasks/{second['id']}/assign", json={"assigned_to_id": designer.id})
         response = designer.post(
             f"/api/tasks/{second['id']}/status", json={"status": "In Progress"}
         )
         assert response.status_code == 409
         assert "blocked_by" in response.json()["error"]["details"]
+
+    def test_an_advisory_dependency_does_not_block(self, sandbox, lead, designer):
+        """The other half of the rule: advisory links are order, not gates."""
+        third, fourth = sandbox["tasks"][2], sandbox["tasks"][3]
+        lead.post(
+            f"/api/tasks/{fourth['id']}/dependencies",
+            json={"depends_on_task_id": third["id"], "is_blocking": False},
+        )
+        lead.post(f"/api/tasks/{fourth['id']}/assign", json={"assigned_to_id": designer.id})
+        response = designer.post(
+            f"/api/tasks/{fourth['id']}/status", json={"status": "In Progress"}
+        )
+        assert response.status_code == 200, response.json()
 
     def test_illegal_status_transitions_are_refused(self, sandbox, lead):
         task = sandbox["tasks"][4]
@@ -426,7 +449,7 @@ class TestDerivedDates:
     def test_release_actual_start_follows_its_earliest_task(
         self, db, sandbox, lead, designer
     ):
-        from datetime import datetime
+        from datetime import UTC, datetime
 
         from app.models.release import DesignRelease
         from app.models.task import Task
@@ -448,7 +471,7 @@ class TestDerivedDates:
         # does. The release must follow rather than keep the stale date.
         task = db.get(Task, sandbox["tasks"][0]["id"])
         task.started_at = datetime.combine(
-            first - timedelta(days=10), datetime.min.time()
+            first - timedelta(days=10), datetime.min.time(), tzinfo=UTC
         )
         db.flush()
 
@@ -605,3 +628,128 @@ class TestSettingShapeValidation:
             manager.put(
                 "/api/settings/workflow.task_types", json={"value": original}
             )
+
+
+class TestFinishedWorkHealth:
+    """RAG marks what needs attention, not what already happened.
+
+    A completed release that overran its estimate used to stay RED for ever.
+    The overrun is real and still reported -- as effort variance, efficiency
+    and the department KPIs -- but a colour a manager cannot act on turns the
+    portfolio view into noise, and made a project that delivered two of three
+    releases show three red bars.
+    """
+
+    def test_a_completed_release_is_not_red_for_overrunning_effort(self, db):
+        from sqlalchemy import select
+
+        from app.models.release import DesignRelease
+        from app.services import health_service
+
+        release = db.execute(
+            select(DesignRelease).where(
+                DesignRelease.status == "Completed",
+                DesignRelease.delay_days == 0,
+                DesignRelease.estimated_hours > 0,
+                DesignRelease.actual_hours > DesignRelease.estimated_hours,
+            )
+        ).scalars().first()
+        if release is None:
+            import pytest
+
+            pytest.skip("no completed over-effort release in this dataset")
+
+        health, reasons = health_service.evaluate_release_health(db, release)
+        assert health == "GREEN", (
+            f"{release.code} delivered on time but is {health}: {reasons}"
+        )
+
+    def test_a_completed_release_delivered_late_still_says_so(self, db):
+        from datetime import date
+
+        from app.models.release import DesignRelease
+        from app.services import health_service
+
+        release = DesignRelease(
+            project_id=db.execute(
+                __import__("sqlalchemy").select(DesignRelease.project_id).limit(1)
+            ).scalar(),
+            code="DR-TEST-LATE",
+            name="Late but finished",
+            release_type="Mechanical Design",
+            sequence_number=99,
+            status="Completed",
+            delay_days=9,
+            planned_end=date.today(),
+        )
+        health, reasons = health_service.evaluate_release_health(db, release)
+        assert health == "RED"
+        assert any(r["code"] == "delivered_late" for r in reasons), reasons
+
+
+class TestAdvisoryDependencies:
+    """Not every prerequisite is a gate (spec section 11).
+
+    Chaining every generated task as blocking left a team lead with nothing
+    they were allowed to start: each task waited on the one before it, all the
+    way back. Real design overlaps, so the template says which links are gates.
+    """
+
+    def test_generated_dependencies_follow_the_template_flag(self, db):
+        from sqlalchemy import select
+
+        from app.models.task import Task, TaskDependency
+        from app.models.template import TemplateTask
+
+        rows = db.execute(
+            select(TaskDependency, Task)
+            .join(Task, Task.id == TaskDependency.task_id)
+            .limit(400)
+        ).all()
+        assert rows, "expected generated dependencies in the seeded data"
+
+        advisory = [d for d, _ in rows if not d.is_blocking]
+        blocking = [d for d, _ in rows if d.is_blocking]
+        assert advisory, "no advisory dependency was generated"
+        assert blocking, "no blocking dependency was generated"
+
+        # The gates should be the tasks that genuinely need their input to
+        # exist. Scoped to the seeded library: other tests create templates
+        # through the API, where the flag correctly defaults to blocking.
+        from app.models.template import DesignTemplate, DesignTemplateVersion
+
+        gating = db.execute(
+            select(TemplateTask.task_type)
+            .join(
+                DesignTemplateVersion,
+                DesignTemplateVersion.id == TemplateTask.version_id,
+            )
+            .join(
+                DesignTemplate,
+                DesignTemplate.id == DesignTemplateVersion.template_id,
+            )
+            .where(
+                DesignTemplate.name.like("%- Standard"),
+                TemplateTask.depends_on_blocking.is_(True),
+                TemplateTask.depends_on_sequence.is_not(None),
+            )
+        ).scalars().all()
+        assert set(gating) <= {"Checking", "BOM", "Documentation"}, set(gating)
+
+    def test_a_lead_now_has_startable_work(self, db):
+        """The symptom that motivated the change."""
+        from sqlalchemy import select
+
+        from app.models.task import Task
+        from app.services import task_service
+
+        assigned = db.execute(
+            select(Task).where(Task.status == "Assigned").limit(60)
+        ).scalars().all()
+        assert assigned, "expected assigned tasks in the seeded data"
+
+        startable = [t for t in assigned if not task_service.blocking_prerequisites(db, t)]
+        assert startable, (
+            "every assigned task is still gated behind a prerequisite; a lead "
+            "cannot start anything"
+        )

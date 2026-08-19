@@ -51,6 +51,7 @@ interface DraftRow {
   is_mandatory: boolean;
   requires_review: boolean;
   depends_on_sequence: number | null;
+  depends_on_blocking: boolean;
 }
 
 const toRow = (task: TemplateTask, index: number): DraftRow => ({
@@ -66,6 +67,7 @@ const toRow = (task: TemplateTask, index: number): DraftRow => ({
   is_mandatory: task.is_mandatory,
   requires_review: task.requires_review,
   depends_on_sequence: task.depends_on_sequence,
+  depends_on_blocking: task.depends_on_blocking ?? true,
 });
 
 export default function Templates() {
@@ -143,6 +145,7 @@ export default function Templates() {
           is_mandatory: true,
           requires_review: true,
           depends_on_sequence: next.length ? sequence - 1 : null,
+          depends_on_blocking: true,
         },
       ];
     });
@@ -161,6 +164,7 @@ export default function Templates() {
       is_mandatory: row.is_mandatory,
       requires_review: row.requires_review,
       depends_on_sequence: row.depends_on_sequence,
+      depends_on_blocking: row.depends_on_blocking,
     }));
     saveTasks.mutate(payload, { onSuccess: () => setRows(null) });
   };
@@ -522,8 +526,26 @@ function ReadOnlyTasks({ tasks }: { tasks: TemplateTask[] }) {
                 </td>
                 <td className="td text-right text-xs tabular">{task.complexity}</td>
                 <td className="td text-xs">{task.default_priority}</td>
-                <td className="td text-xs text-ink-500">
-                  {task.depends_on_sequence ? `#${task.depends_on_sequence}` : DASH}
+                <td className="td text-xs">
+                  {task.depends_on_sequence ? (
+                    <span
+                      className={
+                        task.depends_on_blocking ? "text-ink-700" : "text-ink-400"
+                      }
+                      title={
+                        task.depends_on_blocking
+                          ? "Blocking: this task cannot start until that one is complete"
+                          : "Advisory: the expected order, but the task may start early"
+                      }
+                    >
+                      #{task.depends_on_sequence}
+                      <span className="ml-1 text-2xs">
+                        {task.depends_on_blocking ? "gate" : "advisory"}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-ink-400">{DASH}</span>
+                  )}
                 </td>
                 <td className="td">
                   <div className="flex gap-1">
@@ -696,6 +718,18 @@ function TaskEditor({
                     }
                     placeholder="—"
                   />
+                  {row.depends_on_sequence !== null && (
+                    <label className="mt-1 flex items-center gap-1 text-2xs text-ink-600">
+                      <input
+                        type="checkbox"
+                        checked={row.depends_on_blocking}
+                        onChange={(e) =>
+                          onChange(row.key, { depends_on_blocking: e.target.checked })
+                        }
+                      />
+                      gate
+                    </label>
+                  )}
                 </td>
                 <td className="px-2 py-1">
                   <div className="flex flex-col gap-0.5">

@@ -22,6 +22,7 @@ from app.core.enums import (
     OPEN_TASK_STATUSES,
     HealthStatus,
     Priority,
+    ProjectStatus,
     ReleaseStatus,
     TaskStatus,
 )
@@ -151,9 +152,44 @@ def sweep_delays(db: Session, today: date | None = None) -> dict[str, int]:
 def evaluate_release_health(
     db: Session, release: DesignRelease, today: date | None = None
 ) -> tuple[str, list[dict]]:
+    """RAG for a release.
+
+    Live work is weighed on schedule, open blockers, effort and rework.
+    Finished work reports its delivery outcome only: whether it landed late.
+
+    The distinction matters because RAG is what a manager scans for things
+    that still need attention, and a finished release cannot be acted on.
+    Judging one on effort overrun left a project that had delivered two of its
+    three releases showing three red bars -- a crisis rather than a record. The
+    overrun is not lost: it is already stated precisely as effort variance and
+    efficiency, and it still feeds the department KPIs and the insight engine.
+    """
     today = today or date.today()
     rules = settings_service.health_rules(db)
     findings: list[Finding] = []
+
+    if release.status in {
+        ReleaseStatus.COMPLETED.value,
+        ReleaseStatus.CANCELLED.value,
+    }:
+        # Open-task and blocker findings would be stale by definition here, and
+        # effort overrun is reported as a number rather than a colour.
+        if release.status == ReleaseStatus.COMPLETED.value and release.delay_days:
+            level = _band(
+                release.delay_days,
+                float(rules.get("amber_delay_days", 2)),
+                float(rules.get("red_delay_days", 5)),
+            )
+            if level:
+                findings.append(
+                    Finding(
+                        level,
+                        "delivered_late",
+                        f"Delivered {release.delay_days} day(s) after the planned end",
+                        release.delay_days,
+                    )
+                )
+        return _worst(findings), [f.as_dict() for f in findings]
 
     if release.delay_days:
         level = _band(
@@ -273,10 +309,35 @@ def evaluate_release_health(
 def evaluate_project_health(
     db: Session, project: Project, today: date | None = None
 ) -> tuple[str, list[dict]]:
-    """Project health, rolling up its releases and adding project-level checks."""
+    """Project health, rolling up its releases and adding project-level checks.
+
+    As with a release, a finished project reports how it landed rather than
+    raising alarms nobody can act on.
+    """
     today = today or date.today()
     rules = settings_service.health_rules(db)
     findings: list[Finding] = []
+
+    if project.status in {
+        ProjectStatus.COMPLETED.value,
+        ProjectStatus.CANCELLED.value,
+    }:
+        if project.status == ProjectStatus.COMPLETED.value and project.delay_days:
+            level = _band(
+                project.delay_days,
+                float(rules.get("amber_delay_days", 2)),
+                float(rules.get("red_delay_days", 5)),
+            )
+            if level:
+                findings.append(
+                    Finding(
+                        level,
+                        "delivered_late",
+                        f"Delivered {project.delay_days} day(s) after the required date",
+                        project.delay_days,
+                    )
+                )
+        return _worst(findings), [f.as_dict() for f in findings]
 
     if project.delay_days:
         level = _band(

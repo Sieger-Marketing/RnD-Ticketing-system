@@ -302,6 +302,13 @@ def _publish_template(
     db.add(template)
     db.flush()
 
+    # Which prerequisites are real gates rather than just the expected order.
+    # A check or a BOM cannot begin before the thing it checks or counts
+    # exists; one drawing can usefully start while the previous one is still
+    # being finished. Chaining every task hard left a team lead with nothing
+    # they were permitted to start, which is not how design actually runs.
+    GATING_TASK_TYPES = {"Checking", "BOM", "Documentation"}
+
     version = DesignTemplateVersion(
         template_id=template.id, version_number=1, is_published=False
     )
@@ -333,6 +340,7 @@ def _publish_template(
                 is_mandatory=mandatory,
                 requires_review=review,
                 depends_on_sequence=index - 1 if depends and index > 1 else None,
+                depends_on_blocking=task_type in GATING_TASK_TYPES,
             )
         )
     db.flush()

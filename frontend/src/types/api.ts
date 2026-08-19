@@ -325,6 +325,8 @@ export interface TemplateTask {
   is_mandatory: boolean;
   requires_review: boolean;
   depends_on_sequence: number | null;
+  /** False means the prerequisite is the expected order, not a gate. */
+  depends_on_blocking: boolean;
 }
 
 export interface TemplateVersion {

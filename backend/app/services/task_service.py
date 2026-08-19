@@ -163,6 +163,28 @@ def add_dependency(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        # The dependency is already there, but the caller may be changing what
+        # kind it is -- promoting an advisory link to a hard gate, or relaxing
+        # one. Returning it untouched made that a silent no-op: the request
+        # succeeded and nothing changed.
+        if existing.is_blocking != is_blocking:
+            before = existing.is_blocking
+            existing.is_blocking = is_blocking
+            db.flush()
+            audit_service.record(
+                db,
+                entity_type="task",
+                entity_id=task.id,
+                entity_code=task.code,
+                action=AuditAction.UPDATE,
+                actor=actor,
+                summary=(
+                    f"Dependency on {prerequisite.code} is now "
+                    f"{'blocking' if is_blocking else 'advisory'}"
+                ),
+                old_value={"is_blocking": before},
+                new_value={"is_blocking": is_blocking},
+            )
         return existing
 
     dependency = TaskDependency(

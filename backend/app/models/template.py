@@ -158,6 +158,14 @@ class TemplateTask(Base, UUIDPrimaryKey, Timestamped):
     # Sequence number of the task this one waits on, within the same template.
     # Resolved into real TaskDependency rows at generation time.
     depends_on_sequence: Mapped[int | None] = mapped_column(Integer)
+    # Whether that prerequisite is a hard gate or merely the expected order.
+    # Design work overlaps: a layout can begin while the GA drawing is still
+    # being finished, but a checking task genuinely cannot start before the
+    # drawing exists. Making every link a gate left leads with nothing they
+    # were allowed to start, so the template decides per task.
+    depends_on_blocking: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default="true"
+    )
 
     version: Mapped[DesignTemplateVersion] = relationship(back_populates="tasks")
     # Eagerly joined: the template screens always render the skill name
