@@ -3,6 +3,7 @@
     python seed.py              bootstrap only (permissions, roles, settings)
     python seed.py --demo       bootstrap plus the demonstration department
     python seed.py --demo --reset   wipe business data first, then reseed
+    python seed.py --bom        import the real BOM project (skipped if present)
 
 `--reset` truncates the business tables but leaves the schema in place, so it
 is a fast way to get back to a known demo state without re-running migrations.
@@ -17,7 +18,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.session import SessionLocal, engine
-from app.seed import bootstrap, demo
+from app.seed import bom, bootstrap, demo
 
 #: Order matters only for readability -- TRUNCATE ... CASCADE handles the rest.
 BUSINESS_TABLES = [
@@ -69,6 +70,15 @@ def main() -> None:
     settings.assert_deployable()
     parser = argparse.ArgumentParser(description="Seed the Design Operations database.")
     parser.add_argument("--demo", action="store_true", help="also seed demo data")
+    parser.add_argument(
+        "--bom",
+        action="store_true",
+        help="import the real BOM project from its committed fixture",
+    )
+    parser.add_argument(
+        "--keep-demo-project",
+        help="when importing, keep only this demo project and remove the rest",
+    )
     parser.add_argument("--reset", action="store_true", help="wipe business data first")
     parser.add_argument("--yes", action="store_true", help="confirm a destructive reset")
     args = parser.parse_args()
@@ -96,6 +106,13 @@ def main() -> None:
                     "  Team Lead       suresh.balan@designops.dev\n"
                     "  Designer        arun.prakash@designops.dev"
                 )
+
+        if args.bom:
+            # Skip-if-present, so leaving this in a deploy command does not
+            # overwrite the team's work on every push.
+            imported = bom.run(db, keep_demo_project=args.keep_demo_project)
+            db.commit()
+            print("BOM import:", imported)
 
 
 if __name__ == "__main__":

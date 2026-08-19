@@ -1,0 +1,269 @@
+{
+  "project": "Ganga Medical-L cart",
+  "product": "L Cart",
+  "source": "Design team BOM release tracker",
+  "assemblies": [
+    {
+      "assembly": "Lift Frame Assy",
+      "cars": null,
+      "dsqs": 1,
+      "gfc": null,
+      "dispatch": "2026-05-01",
+      "remarks": null,
+      "phases": {
+        "Concept": {
+          "task_type": "Layout",
+          "planned_end": null,
+          "actual_end": null,
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Long Lead & RM": {
+          "task_type": "Coordination",
+          "planned_end": "2026-03-03",
+          "actual_end": "2026-03-09",
+          "completed": true,
+          "completion_percent": null
+        },
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-04-22",
+          "actual_end": null,
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-04-28",
+          "actual_end": null,
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-08-12",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "Base plate Foundation & Structure drawing A",
+      "cars": null,
+      "dsqs": 2,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-08-05",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 20.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-08-10",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 0.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-08-14",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "Machine room/ Pallet rail Assy / Rail assembly/panel Assy",
+      "cars": null,
+      "dsqs": 3,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-06-02",
+          "actual_end": null,
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-06-05",
+          "actual_end": "2026-06-12",
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-09-03",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "Cross cart / fall safety  / Counter weight Assy",
+      "cars": null,
+      "dsqs": 4,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-06-08",
+          "actual_end": null,
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-06-18",
+          "actual_end": "2026-06-25",
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-09-03",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "Pallet Assy",
+      "cars": null,
+      "dsqs": 5,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-06-02",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 100.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-06-18",
+          "actual_end": "2026-07-03",
+          "completed": true,
+          "completion_percent": 100.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-09-05",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "Structure drawing B",
+      "cars": null,
+      "dsqs": 6,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-08-13",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 10.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-08-20",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 0.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-08-31",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "BStructure drawing C",
+      "cars": null,
+      "dsqs": 7,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-08-25",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 10.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-08-29",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 0.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-08-31",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    },
+    {
+      "assembly": "Door / Purlin Assy / PMS",
+      "cars": null,
+      "dsqs": 8,
+      "gfc": null,
+      "dispatch": "2026-07-01",
+      "remarks": null,
+      "phases": {
+        "3D Design": {
+          "task_type": "Modelling",
+          "planned_end": "2026-09-05",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 0.0
+        },
+        "Mfg. Release": {
+          "task_type": "Drawing",
+          "planned_end": "2026-09-10",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": 0.0
+        },
+        "Packing list & Stuffing": {
+          "task_type": "Documentation",
+          "planned_end": "2026-09-15",
+          "actual_end": null,
+          "completed": false,
+          "completion_percent": null
+        }
+      }
+    }
+  ]
+}
