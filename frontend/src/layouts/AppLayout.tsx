@@ -14,6 +14,7 @@ import {
   ChevronRight,
   FileStack,
   FolderKanban,
+  GitBranch,
   Layers,
   LayoutDashboard,
   LayoutGrid,
@@ -113,6 +114,11 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         to: "/timesheet",
         label: "Timesheet",
         icon: <Clock className="h-4 w-4" />,
+      },
+      {
+        to: "/standards",
+        label: "Release Standards",
+        icon: <GitBranch className="h-4 w-4" />,
       },
       {
         to: "/templates",

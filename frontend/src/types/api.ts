@@ -616,3 +616,27 @@ export interface Notification {
   read_at: ISODateTime | null;
   created_at: ISODateTime;
 }
+
+/** One standard design release a product produces. */
+export interface ReleaseStandard {
+  id: UUID;
+  sequence: number;
+  name: string;
+  is_default: boolean;
+  condition: string | null;
+  alternative_name: string | null;
+}
+
+/** A named set of releases -- "standard", or a size-driven alternative. */
+export interface StandardVariant {
+  variant: string;
+  condition: string | null;
+  releases: ReleaseStandard[];
+}
+
+export interface ProductStandard {
+  product_id: UUID;
+  product_name: string;
+  tasks: string[];
+  variants: StandardVariant[];
+}

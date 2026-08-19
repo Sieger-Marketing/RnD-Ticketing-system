@@ -19,6 +19,7 @@ from app.models.system import (
     SyncLog,
 )
 from app.models.task import Task, TaskDependency, TaskEstimateHistory
+from app.models.standard import ReleaseStandard
 from app.models.template import DesignTemplate, DesignTemplateVersion, TemplateTask
 from app.models.user import (
     Holiday,
@@ -57,6 +58,7 @@ __all__ = [
     "Role",
     "RolePermission",
     "Skill",
+    "ReleaseStandard",
     "StatusHistory",
     "SyncLog",
     "Task",

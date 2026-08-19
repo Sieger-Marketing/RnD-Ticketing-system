@@ -1,0 +1,119 @@
+{
+  "source": "Design release standards supplied by the design team",
+  "tasks": [
+    "Concept",
+    "3D Drawing",
+    "2D Drawing",
+    "2D Checking",
+    "Check Sheet Filling"
+  ],
+  "task_note": "The same five tasks sit under every design release, whatever the product.",
+  "products": [
+    {
+      "product": "Puzzle",
+      "dsq": 4,
+      "releases": [
+        { "name": "Foundation", "condition": "When the system is above 3 level Puzzle", "default": false },
+        { "name": "Structures", "default": true },
+        { "name": "Platforms Assy", "default": true },
+        { "name": "CS Assy", "default": true },
+        { "name": "Ceiling Supports", "condition": "When the system is a 2 level Puzzle", "default": false }
+      ]
+    },
+    {
+      "product": "Pit-Puzzle",
+      "dsq": 4,
+      "releases": [
+        { "name": "Structures", "default": true },
+        { "name": "Platforms Assy", "default": true },
+        { "name": "CS Assy", "default": true },
+        { "name": "Ceiling Supports", "condition": "For all levels of Pit-Puzzle system", "default": true }
+      ]
+    },
+    {
+      "product": "Stacker",
+      "aliases": ["Pit Stacker", "Two-Post Stacker"],
+      "dsq": 3,
+      "variant_note": "Two standards. Systems of more than 10 units release as 3 DSQs; 10 or fewer release as a single combined DSQ.",
+      "releases": [
+        { "name": "Structures + Platform", "default": true },
+        { "name": "CS + Variable Assy + Direct BO", "default": true },
+        { "name": "Ceiling Supports", "condition": "When the site has a ceiling; otherwise Top Support", "default": true, "alternative": "Top Support" }
+      ],
+      "variants": [
+        {
+          "name": "Small system",
+          "dsq": 1,
+          "condition": "When the system is 10 units or fewer",
+          "releases": [
+            { "name": "Structures + CS + Variable Assy + Ceiling Support", "default": true }
+          ]
+        }
+      ]
+    },
+    {
+      "product": "Rotary",
+      "dsq": 4,
+      "releases": [
+        { "name": "Foundation", "default": true },
+        { "name": "Structures + Chain + Rollers", "default": true },
+        { "name": "CS + Accessory", "default": true },
+        { "name": "Pallets", "default": true }
+      ]
+    },
+    {
+      "product": "Tower",
+      "aliases": ["Tower Parking System"],
+      "dsq": 5,
+      "releases": [
+        { "name": "Brackets with Templates + Pallet + Guide Rails + Stuffing Frame", "default": true },
+        { "name": "Ground Platform + Machine Room + Motors + CS Assy", "default": true },
+        { "name": "Counter Weight + Cage + Rope", "default": true },
+        { "name": "Pallets", "default": true },
+        { "name": "PMS + Doors", "default": true }
+      ]
+    },
+    {
+      "product": "H Cart",
+      "aliases": ["H-Cart"],
+      "dsq": 6,
+      "releases": [
+        { "name": "Foundation + Structures", "default": true },
+        { "name": "PB Frames + Pallets", "default": true },
+        { "name": "Lift + Lift Rail Brackets + CS Items", "default": true },
+        { "name": "Machine Room + CW", "default": true },
+        { "name": "Cross Cart + OSG + Stage Locking", "default": true },
+        { "name": "PMS + Accessories + Doors", "default": true }
+      ]
+    },
+    {
+      "product": "L Cart",
+      "aliases": ["L-Cart"],
+      "dsq": 6,
+      "releases": [
+        { "name": "Lift Frame", "default": true },
+        { "name": "Foundation + Structures + Pallet Rails", "default": true },
+        { "name": "Lift + Lift Rail Brackets + CS Items", "default": true },
+        { "name": "Machine Room + CW + OSG", "default": true },
+        { "name": "Cross Cart Pallets + Doors", "default": true },
+        { "name": "PMS + Accessories + Others", "default": true }
+      ]
+    },
+    {
+      "product": "Auto Cart",
+      "aliases": ["Auto-cart", "Automated Guided Vehicle Parking"],
+      "dsq": 8,
+      "owner": "Balamurgan",
+      "releases": [
+        { "name": "T-Rail + Lift Brackets", "default": true },
+        { "name": "Lift + Accessories", "default": true },
+        { "name": "Machine Room + CW", "default": true },
+        { "name": "Control Panel", "default": true },
+        { "name": "PB Frames + Pallets", "default": true },
+        { "name": "Cross Cart", "default": true },
+        { "name": "Doors + Accessories", "default": true },
+        { "name": "PMS", "default": true }
+      ]
+    }
+  ]
+}

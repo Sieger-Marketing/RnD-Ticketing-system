@@ -28,6 +28,7 @@ import type {
   Page,
   Product,
   ProductFamily,
+  ProductStandard,
   ProjectDetail,
   ProjectSummary,
   ReleaseDetail,
@@ -856,5 +857,40 @@ export function usePublishVersion() {
     mutationFn: (versionId: UUID) =>
       post(`/api/templates/versions/${versionId}/publish`),
     onSuccess: () => invalidateTemplates(qc),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Standard design releases
+// ---------------------------------------------------------------------------
+
+/** Every product's standard -- the reference chart. */
+export function useReleaseStandards() {
+  return useQuery({
+    queryKey: ["release-standards"],
+    queryFn: () => get<ProductStandard[]>("/api/release-standards"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useProductStandard(productId: UUID | null | undefined) {
+  return useQuery({
+    queryKey: ["release-standard", productId],
+    queryFn: () => get<ProductStandard>(`/api/products/${productId}/release-standard`),
+    enabled: Boolean(productId),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useApplyStandard(projectId: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      variant: string;
+      release_ids: UUID[];
+      generate_tasks?: boolean;
+      planned_start?: string | null;
+    }) => post<ReleaseSummary[]>(`/api/projects/${projectId}/apply-standard`, body),
+    onSuccess: () => invalidateWorkflow(qc),
   });
 }

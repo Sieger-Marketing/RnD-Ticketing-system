@@ -14,6 +14,7 @@ from app.api.v1 import (
     resources,
     reviews,
     settings,
+    standards,
     tasks,
     templates,
     time_entries,
@@ -28,6 +29,7 @@ api_router.include_router(catalog.router)
 api_router.include_router(meta.router)
 api_router.include_router(projects.router)
 api_router.include_router(releases.router)
+api_router.include_router(standards.router)
 api_router.include_router(templates.router)
 api_router.include_router(tasks.router)
 api_router.include_router(time_entries.router)

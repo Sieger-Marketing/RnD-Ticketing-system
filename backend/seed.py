@@ -18,7 +18,7 @@ from sqlalchemy import text
 
 from app.core.config import settings
 from app.db.session import SessionLocal, engine
-from app.seed import bom, bootstrap, demo
+from app.seed import bom, bootstrap, demo, standards
 
 #: Order matters only for readability -- TRUNCATE ... CASCADE handles the rest.
 BUSINESS_TABLES = [
@@ -92,6 +92,12 @@ def main() -> None:
         result = bootstrap.run(db)
         db.commit()
         print("Bootstrap:", result)
+
+        # The release standards are a definition, not demo data: they belong
+        # on every environment, including a production one with no demo.
+        loaded = standards.run(db)
+        db.commit()
+        print("Release standards:", loaded)
 
         if args.demo:
             stats = demo.run(db, password=settings.SEED_DEFAULT_PASSWORD)

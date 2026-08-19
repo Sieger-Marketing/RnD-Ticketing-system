@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -97,3 +97,40 @@ class ProductUpdate(BaseModel):
     description: str | None = None
     is_active: bool | None = None
     external_id: str | None = None
+
+
+class ReleaseStandardOut(ORMModel):
+    """One standard design release, as the design team defined it."""
+
+    id: uuid.UUID
+    sequence: int
+    name: str
+    is_default: bool
+    condition: str | None = None
+    alternative_name: str | None = None
+
+
+class StandardVariantOut(BaseModel):
+    """A named set of releases -- "standard", or a size-driven alternative."""
+
+    variant: str
+    condition: str | None = None
+    releases: list[ReleaseStandardOut]
+
+
+class ProductStandardOut(BaseModel):
+    product_id: uuid.UUID
+    product_name: str
+    #: The five tasks generated under each release, or empty if the shared
+    #: template has not been published on this environment.
+    tasks: list[str] = []
+    variants: list[StandardVariantOut]
+
+
+class ApplyStandard(BaseModel):
+    """Which of a product's standard releases to create on a project."""
+
+    variant: str = "standard"
+    release_ids: list[uuid.UUID] = Field(min_length=1)
+    generate_tasks: bool = True
+    planned_start: date | None = None

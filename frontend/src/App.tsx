@@ -24,6 +24,7 @@ import Kanban from "@/routes/Kanban";
 import Releases from "@/routes/Releases";
 import Reviews from "@/routes/Reviews";
 import Revisions from "@/routes/Revisions";
+import Standards from "@/routes/Standards";
 import TeamLeadDashboard from "@/routes/TeamLeadDashboard";
 import TaskDetail from "@/routes/TaskDetail";
 import Tasks from "@/routes/Tasks";
@@ -129,6 +130,10 @@ export default function App() {
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/revisions" element={<Revisions />} />
         <Route path="/timesheet" element={<Timesheet />} />
+
+        {/* The release standard is reference material for the whole team --
+            a designer benefits from seeing where their release sits. */}
+        <Route path="/standards" element={<Standards />} />
 
         <Route
           path="/templates"

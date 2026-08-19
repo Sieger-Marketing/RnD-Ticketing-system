@@ -2,10 +2,11 @@
  * The per-project dashboard (spec section 26).
  */
 
-import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, GitBranch, Plus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { ApplyStandardModal } from "@/components/ApplyStandardModal";
 import { ReleaseCreateModal } from "@/components/ReleaseCreateModal";
 import { ReleaseTimeline, type TimelineRelease } from "@/components/ReleaseTimeline";
 import {
@@ -73,6 +74,7 @@ export default function ProjectDetail() {
   const navigate = useNavigate();
   const can = useAuth((s) => s.can);
   const [creatingRelease, setCreatingRelease] = useState(false);
+  const [applyingStandard, setApplyingStandard] = useState(false);
 
   const project = useProject(projectId);
   const dashboard = useProjectDashboard(projectId);
@@ -149,6 +151,17 @@ export default function ProjectDetail() {
               <RefreshCw className="h-4 w-4" />
               Refresh
             </button>
+            {can(P.releaseCreate) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setApplyingStandard(true)}
+                title="Create this product's standard design releases"
+              >
+                <GitBranch className="h-4 w-4" />
+                Apply standard
+              </button>
+            )}
             {can(P.releaseCreate) && (
               <button
                 type="button"
@@ -247,13 +260,23 @@ export default function ProjectDetail() {
                 A release is one design stage — concept, mechanical, drawings, BOM.
               </p>
               {can(P.releaseCreate) && (
-                <button
-                  type="button"
-                  className="btn-primary mt-3"
-                  onClick={() => setCreatingRelease(true)}
-                >
-                  Create the first release
-                </button>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => setApplyingStandard(true)}
+                  >
+                    <GitBranch className="h-4 w-4" />
+                    Apply the {p.product_name ?? "product"} standard
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setCreatingRelease(true)}
+                  >
+                    Create one release
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -397,6 +420,17 @@ export default function ProjectDetail() {
           </Card>
         </div>
       </div>
+
+      {projectId && applyingStandard && (
+        <ApplyStandardModal
+          open
+          projectId={projectId}
+          productId={p.product_id}
+          productName={p.product_name}
+          onClose={() => setApplyingStandard(false)}
+          onApplied={() => setApplyingStandard(false)}
+        />
+      )}
 
       {projectId && creatingRelease && (
         <ReleaseCreateModal
