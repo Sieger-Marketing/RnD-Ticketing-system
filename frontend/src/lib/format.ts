@@ -98,3 +98,25 @@ export function initials(fullName: string | null | undefined): string {
   const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
   return (first + last).toUpperCase() || "?";
 }
+
+/**
+ * Today in the *browser's* timezone, as YYYY-MM-DD.
+ *
+ * `new Date().toISOString().slice(0,10)` is the UTC date, which is a different
+ * day from the user's for part of every 24 hours. Using it to pre-fill or cap
+ * a date input hands someone west of UTC a tomorrow the server will reject,
+ * and someone east of UTC a yesterday.
+ */
+export function localToday(): string {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+/** Local date N days back, same reasoning as localToday. */
+export function localDaysAgo(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  const offset = d.getTimezoneOffset() * 60_000;
+  return new Date(d.getTime() - offset).toISOString().slice(0, 10);
+}

@@ -98,7 +98,10 @@ export const http: AxiosInstance = axios.create({
   // Empty base means same-origin "/api", which the Vite proxy handles in dev
   // and a platform rewrite handles in production.
   baseURL: import.meta.env.VITE_API_BASE_URL || "",
-  timeout: 30_000,
+  // A free Render instance sleeps after inactivity and can take the better
+  // part of a minute to wake. A 30s ceiling turned every first request of the
+  // morning into "the server is unreachable", which is not what happened.
+  timeout: 75_000,
   headers: { "Content-Type": "application/json" },
   paramsSerializer: serializeParams,
 });
@@ -132,7 +135,12 @@ http.interceptors.response.use(
     }
 
     if (error.code === "ECONNABORTED") {
-      throw new ApiError(0, "timeout", "The request timed out. Please try again.");
+      throw new ApiError(
+        0,
+        "timeout",
+        "The server did not respond in time. If it has been idle it may still "
+          + "be starting up — try again in a moment.",
+      );
     }
 
     throw new ApiError(

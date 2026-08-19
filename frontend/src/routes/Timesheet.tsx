@@ -1,13 +1,18 @@
 /**
  * Personal timesheet (spec section 15).
  *
- * Two API facts shape this screen:
+ * Four API facts shape this screen:
  *
  *  - There is no edit endpoint. A row can be deleted and re-logged, but not
  *    amended, so the UI offers delete rather than pretending to edit.
  *  - A running entry is returned with hours = 0, and every server-side total
- *    excludes it. Summing the rows naively would therefore disagree with the
- *    summary, so running entries are shown as live and left out of the totals.
+ *    excludes it, so it is shown as live and left out of the totals.
+ *  - `/entries` is paginated and caps at 200 a page. The headline hours come
+ *    from `/summary`, which counts the whole period, because adding up one
+ *    page silently under-reported a long range.
+ *  - A manual entry with no interval is given 09:00 by the server and then
+ *    refused for overlapping the last one. The interval is built client-side;
+ *    see lib/timeEntry.
  */
 
 import { Clock, Square, Trash2 } from "lucide-react";
@@ -20,20 +25,24 @@ import {
   Card,
   EmptyState,
   ErrorState,
+  InlineAlert,
   KpiCard,
   PageHeader,
   SkeletonRows,
   Spinner,
 } from "@/components/ui/primitives";
+import { ResponsiveTable } from "@/components/ui/ResponsiveTable";
 import {
+  useAllTimeEntries,
   useDeleteTimeEntry,
   useLogTime,
   useMyWork,
   useRunningTimer,
   useStopTimer,
-  useTimeEntries,
+  useTimeSummary,
 } from "@/hooks/queries";
-import { DASH, hours, shortDate } from "@/lib/format";
+import { DASH, hours, localDaysAgo, localToday, shortDate } from "@/lib/format";
+import { buildManualEntry } from "@/lib/timeEntry";
 import { P, useAuth } from "@/store/auth";
 
 /** Elapsed time for a running entry, recomputed each second. */
@@ -53,30 +62,24 @@ function useElapsed(startedAt: string | null | undefined): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function isoDaysAgo(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
 export default function Timesheet() {
   const { can, user } = useAuth();
   const canLog = can(P.timeLogOwn);
 
-  const [from, setFrom] = useState(isoDaysAgo(13));
-  const [to, setTo] = useState(new Date().toISOString().slice(0, 10));
+  const [from, setFrom] = useState(localDaysAgo(13));
+  const [to, setTo] = useState(localToday());
   const [logging, setLogging] = useState(false);
   const [form, setForm] = useState({ task_id: "", entry_date: "", hours: "", description: "" });
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
-  const entries = useTimeEntries({
-    user_id: user?.id,
-    date_from: from,
-    date_to: to,
-    page_size: 200,
-  });
+  const range = { user_id: user?.id, date_from: from, date_to: to };
+  const entries = useAllTimeEntries(range);
+  const summary = useTimeSummary(range);
   const running = useRunningTimer();
-  const myWork = useMyWork();
+  // Completed tasks are included: an entry can only be corrected by deleting
+  // and re-logging it, and the task it belonged to may well have finished by
+  // then. Excluding them made that correction impossible.
+  const myWork = useMyWork({ include_completed: true });
   const stopTimer = useStopTimer();
   const logTime = useLogTime();
   const deleteEntry = useDeleteTimeEntry();
@@ -84,19 +87,37 @@ export default function Timesheet() {
   const elapsed = useElapsed(running.data?.started_at);
 
   const rows = entries.data?.items ?? [];
-  // Running rows carry hours = 0 and are excluded from every server aggregate;
-  // excluding them here keeps this page agreeing with the rest of the app.
+  // Running rows carry hours = 0 and are excluded from every server aggregate.
   const completed = rows.filter((r) => !r.is_running);
-  const total = completed.reduce((sum, r) => sum + r.hours, 0);
-  const reworkTotal = completed
-    .filter((r) => r.is_rework)
-    .reduce((sum, r) => sum + r.hours, 0);
+
+  // Headline hours come from the server; day counts need the rows themselves.
+  const loggedHours = summary.data?.logged_hours ?? null;
+  const reworkHours = summary.data?.rework_hours ?? null;
 
   const byDay = new Map<string, number>();
   for (const row of completed) {
     byDay.set(row.entry_date, (byDay.get(row.entry_date) ?? 0) + row.hours);
   }
   const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+
+  const openLogForm = () => {
+    logTime.reset();
+    setForm({ task_id: "", entry_date: localToday(), hours: "", description: "" });
+    setLogging(true);
+  };
+
+  const submitEntry = () => {
+    logTime.mutate(
+      buildManualEntry({
+        taskId: form.task_id,
+        entryDate: form.entry_date,
+        hours: Number(form.hours),
+        description: form.description || undefined,
+        existing: rows,
+      }),
+      { onSuccess: () => setLogging(false) },
+    );
+  };
 
   return (
     <>
@@ -105,19 +126,7 @@ export default function Timesheet() {
         subtitle={`${from} to ${to}`}
         actions={
           canLog && (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                setForm({
-                  task_id: "",
-                  entry_date: new Date().toISOString().slice(0, 10),
-                  hours: "",
-                  description: "",
-                });
-                setLogging(true);
-              }}
-            >
+            <button type="button" className="btn-primary" onClick={openLogForm}>
               Log time
             </button>
           )
@@ -128,64 +137,76 @@ export default function Timesheet() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-signal-200 bg-signal-50 px-4 py-3">
           <div className="flex items-center gap-3">
             <span className="flex h-2 w-2 animate-pulse rounded-full bg-signal-600" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-ink-900">
                 Timer running on {running.data.task_code}
               </p>
-              <p className="text-xs text-ink-600">{running.data.task_name}</p>
+              <p className="truncate text-xs text-ink-600">{running.data.task_name}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className="font-mono text-lg tabular text-signal-700">{elapsed}</span>
-            <button
-              type="button"
-              className="btn-danger px-2 py-1"
-              onClick={() => stopTimer.mutate()}
-              disabled={stopTimer.isPending}
-            >
-              {stopTimer.isPending ? <Spinner /> : <Square className="h-3.5 w-3.5" />}
-              Stop
-            </button>
+            {/* Stopping is a mutation like any other and needs the same
+                permission; without this check a reader who lost time.log_own
+                sees a Stop button that can only 403. */}
+            {canLog && (
+              <button
+                type="button"
+                className="btn-danger px-2 py-1"
+                onClick={() => stopTimer.mutate()}
+                disabled={stopTimer.isPending}
+              >
+                {stopTimer.isPending ? <Spinner /> : <Square className="h-3.5 w-3.5" />}
+                Stop
+              </button>
+            )}
           </div>
+        </div>
+      )}
+
+      {stopTimer.error && (
+        <div className="mb-3">
+          <FormError error={stopTimer.error} />
         </div>
       )}
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           label="Logged"
-          value={hours(total)}
-          hint={`${completed.length} entries`}
+          value={hours(loggedHours)}
+          hint={`${completed.length} entries shown`}
           icon={<Clock className="h-4 w-4" />}
         />
         <KpiCard
           label="Rework"
-          value={hours(reworkTotal)}
-          tone={reworkTotal > 0 ? "warn" : "good"}
+          value={hours(reworkHours)}
+          tone={(reworkHours ?? 0) > 0 ? "warn" : "good"}
           hint="Time against an open revision"
         />
-        <KpiCard
-          label="Days worked"
-          value={days.length}
-          hint="Days with at least one entry"
-        />
+        <KpiCard label="Days worked" value={days.length} hint="Days with an entry" />
         <KpiCard
           label="Daily average"
-          value={days.length ? hours(total / days.length) : DASH}
+          value={days.length && loggedHours !== null ? hours(loggedHours / days.length) : DASH}
           hint="Across days worked"
         />
       </div>
+
+      {entries.data?.truncated && (
+        <div className="mb-3">
+          <InlineAlert tone="warn">
+            This range holds {entries.data.total} entries and only the first{" "}
+            {rows.length} are listed. The hours above still cover the whole
+            period; narrow the dates to see every row.
+          </InlineAlert>
+        </div>
+      )}
 
       <div className="mb-3 flex flex-wrap items-end gap-3 rounded-lg border border-ink-200 bg-white p-3">
         <div>
           <label className="label" htmlFor="from">
             From
           </label>
-          <TextInput
-            id="from"
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
+          <TextInput id="from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
         <div>
           <label className="label" htmlFor="to">
@@ -197,8 +218,8 @@ export default function Timesheet() {
           type="button"
           className="btn-secondary"
           onClick={() => {
-            setFrom(isoDaysAgo(13));
-            setTo(new Date().toISOString().slice(0, 10));
+            setFrom(localDaysAgo(13));
+            setTo(localToday());
           }}
         >
           Last 14 days
@@ -215,80 +236,106 @@ export default function Timesheet() {
           />
         )}
 
-        {entries.data && rows.length === 0 && (
-          <EmptyState
-            title="No time logged in this range"
-            description="Start a timer from a task, or log time manually."
-          />
-        )}
-
-        {entries.data && rows.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px]">
-              <thead className="border-b border-ink-200 bg-ink-50">
-                <tr>
-                  <th className="th">Date</th>
-                  <th className="th">Task</th>
-                  <th className="th text-right">Hours</th>
-                  <th className="th">Source</th>
-                  <th className="th">Note</th>
-                  <th className="th" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink-100">
-                {rows.map((entry) => (
-                  <tr
-                    key={entry.id}
-                    className={entry.is_running ? "bg-signal-50" : "hover:bg-ink-50"}
+        {entries.data && (
+          <ResponsiveTable
+            rows={rows}
+            rowKey={(e) => e.id}
+            minWidth="44rem"
+            empty={
+              <EmptyState
+                title="No time logged in this range"
+                description="Start a timer from a task, or log time manually."
+              />
+            }
+            columns={[
+              {
+                key: "task",
+                header: "Task",
+                mobile: "primary",
+                cell: (e) => (
+                  <Link
+                    to={`/tasks/${e.task_id}`}
+                    className="truncate text-signal-700 hover:underline"
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    <td className="td text-xs">{shortDate(entry.entry_date)}</td>
-                    <td className="td max-w-[20rem]">
-                      <Link
-                        to={`/tasks/${entry.task_id}`}
-                        className="truncate text-xs text-signal-700 hover:underline"
-                      >
-                        {entry.task_name}
-                      </Link>
-                      <div className="font-mono text-2xs text-ink-400">
-                        {entry.task_code}
-                      </div>
-                    </td>
-                    <td className="td text-right text-xs tabular">
-                      {entry.is_running ? (
-                        <span className="text-signal-700">running</span>
-                      ) : (
-                        hours(entry.hours)
-                      )}
-                    </td>
-                    <td className="td text-2xs text-ink-500">
-                      {entry.source}
-                      {entry.is_rework && (
-                        <span className="ml-1 rounded bg-rag-amberBg px-1 text-rag-amber">
-                          rework
-                        </span>
-                      )}
-                    </td>
-                    <td className="td max-w-[18rem] truncate text-2xs text-ink-500">
-                      {entry.description ?? DASH}
-                    </td>
-                    <td className="td">
-                      {!entry.is_running && canLog && (
-                        <button
-                          type="button"
-                          className="btn-ghost px-1"
-                          onClick={() => setPendingDelete(entry.id)}
-                          aria-label="Delete this entry"
-                          title="Entries cannot be edited, only deleted and re-logged"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-rag-red" />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    {e.task_name}
+                  </Link>
+                ),
+              },
+              {
+                key: "code",
+                header: "Code",
+                mobile: "meta",
+                cell: (e) => (
+                  <span className="font-mono text-2xs text-ink-400">{e.task_code}</span>
+                ),
+              },
+              {
+                key: "date",
+                header: "Date",
+                mobile: "field",
+                cell: (e) => <span className="text-xs">{shortDate(e.entry_date)}</span>,
+              },
+              {
+                key: "hours",
+                header: "Hours",
+                align: "right",
+                mobile: "field",
+                cell: (e) =>
+                  e.is_running ? (
+                    <span className="text-xs text-signal-700">running</span>
+                  ) : (
+                    <span className="text-xs tabular">{hours(e.hours)}</span>
+                  ),
+              },
+              {
+                key: "source",
+                header: "Source",
+                mobile: "field",
+                cell: (e) => (
+                  <span className="text-2xs text-ink-500">
+                    {e.source}
+                    {e.is_rework && (
+                      <span className="ml-1 rounded bg-rag-amberBg px-1 text-rag-amber">
+                        rework
+                      </span>
+                    )}
+                  </span>
+                ),
+              },
+              {
+                key: "note",
+                header: "Note",
+                mobile: "field",
+                className: "max-w-[18rem]",
+                cell: (e) => (
+                  <span className="truncate text-2xs text-ink-500">
+                    {e.description ?? DASH}
+                  </span>
+                ),
+              },
+              {
+                key: "actions",
+                header: "",
+                cell: (e) =>
+                  !e.is_running && canLog ? (
+                    <button
+                      type="button"
+                      className="btn-ghost px-1"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        deleteEntry.reset();
+                        setPendingDelete(e.id);
+                      }}
+                      aria-label="Delete this entry"
+                      title="Entries cannot be edited, only deleted and re-logged"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-rag-red" />
+                    </button>
+                  ) : null,
+              },
+            ]}
+          />
         )}
       </Card>
 
@@ -297,12 +344,12 @@ export default function Timesheet() {
           <div className="space-y-1.5">
             {days.map(([day, dayHours]) => (
               <div key={day} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-xs text-ink-600">
+                <span className="w-24 shrink-0 text-xs text-ink-600 sm:w-28">
                   {shortDate(day)}
                 </span>
                 <div className="h-3 flex-1 overflow-hidden rounded bg-ink-100">
                   <div
-                    className="h-full rounded bg-signal-500"
+                    className="h-full rounded bg-ink-700"
                     style={{ width: `${Math.min(100, (dayHours / 8) * 100)}%` }}
                   />
                 </div>
@@ -322,7 +369,7 @@ export default function Timesheet() {
         open={logging}
         onClose={() => setLogging(false)}
         title="Log time"
-        description="Overlapping entries and future dates are refused, so the totals stay trustworthy."
+        description="The entry is placed after whatever you already logged that day, so it cannot clash with it."
         footer={
           <>
             <button type="button" className="btn-secondary" onClick={() => setLogging(false)}>
@@ -331,19 +378,13 @@ export default function Timesheet() {
             <button
               type="button"
               className="btn-primary"
-              onClick={() =>
-                logTime.mutate(
-                  {
-                    task_id: form.task_id,
-                    entry_date: form.entry_date,
-                    hours: Number(form.hours),
-                    description: form.description || undefined,
-                  },
-                  { onSuccess: () => setLogging(false) },
-                )
-              }
+              onClick={submitEntry}
               disabled={
-                logTime.isPending || !form.task_id || !form.entry_date || !form.hours
+                logTime.isPending ||
+                !form.task_id ||
+                !form.entry_date ||
+                !form.hours ||
+                Number(form.hours) <= 0
               }
             >
               {logTime.isPending && <Spinner />}
@@ -379,7 +420,7 @@ export default function Timesheet() {
               <TextInput
                 id="ts_date"
                 type="date"
-                max={new Date().toISOString().slice(0, 10)}
+                max={localToday()}
                 value={form.entry_date}
                 onChange={(e) => setForm((f) => ({ ...f, entry_date: e.target.value }))}
               />

@@ -253,10 +253,10 @@ export function useKanban(params?: Params) {
   });
 }
 
-export function useMyWork() {
+export function useMyWork(params?: Params) {
   return useQuery({
-    queryKey: keys.myWork(),
-    queryFn: () => get<TaskSummary[]>("/api/tasks/my-work"),
+    queryKey: [...keys.myWork(), params ?? {}],
+    queryFn: () => get<TaskSummary[]>("/api/tasks/my-work", params),
   });
 }
 
@@ -454,6 +454,66 @@ export function useTimeEntries(params?: Params) {
   });
 }
 
+/**
+ * Authoritative totals for a period, straight from the server.
+ *
+ * The timesheet used to add up the rows it had fetched, which is only correct
+ * while the whole period fits in one page. The summary endpoint counts every
+ * entry and already excludes running ones, so the headline hours cannot
+ * disagree with the rest of the application.
+ */
+export function useTimeSummary(params?: Params) {
+  return useQuery({
+    queryKey: ["time-summary", params ?? {}],
+    queryFn: () =>
+      get<{
+        user_id: string;
+        date_from: string | null;
+        date_to: string | null;
+        logged_hours: number;
+        rework_hours: number;
+        rework_percent: number | null;
+      }>("/api/time/summary", params),
+  });
+}
+
+/** Hard stop on the paging loop, so a bad filter cannot spin forever. */
+const MAX_ENTRY_PAGES = 20;
+
+/**
+ * Every entry in a period, not just the first page.
+ *
+ * `page_size` maxes out at 200 server-side. Reading only `items` meant a
+ * year-long range silently reported roughly a third of the hours worked, and
+ * "days worked" and the daily average were wrong with it. This walks the pages
+ * and reports whether it had to stop early rather than truncating in silence.
+ */
+export function useAllTimeEntries(params?: Params) {
+  return useQuery({
+    queryKey: ["time-entries", "all", params ?? {}],
+    queryFn: async () => {
+      const items: TimeEntry[] = [];
+      let page = 1;
+      let total = 0;
+      let pages = 1;
+
+      while (page <= Math.min(pages, MAX_ENTRY_PAGES)) {
+        const chunk = await get<Page<TimeEntry>>("/api/time/entries", {
+          ...params,
+          page,
+          page_size: 200,
+        });
+        items.push(...chunk.items);
+        total = chunk.total;
+        pages = chunk.pages;
+        page += 1;
+      }
+
+      return { items, total, truncated: items.length < total };
+    },
+  });
+}
+
 export function useRunningTimer() {
   return useQuery({
     queryKey: keys.runningTimer(),
@@ -479,11 +539,20 @@ export function useStopTimer() {
   });
 }
 
+export interface ManualTimeEntry {
+  task_id: UUID;
+  entry_date: string;
+  hours: number;
+  description?: string;
+  /** Supplied by the client so two entries on one day cannot collide. */
+  started_at?: string;
+  ended_at?: string;
+}
+
 export function useLogTime() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, unknown>) =>
-      post<TimeEntry>("/api/time/entries", body),
+    mutationFn: (body: ManualTimeEntry) => post<TimeEntry>("/api/time/entries", body),
     onSuccess: () => invalidateWorkflow(qc),
   });
 }

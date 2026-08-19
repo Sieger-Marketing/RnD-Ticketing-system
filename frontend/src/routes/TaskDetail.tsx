@@ -41,7 +41,9 @@ import {
   useTask,
   useTimeEntries,
 } from "@/hooks/queries";
-import { DASH, dateTime, durationHours, hours, percent, shortDate, variance } from "@/lib/format";
+import { DASH, dateTime, durationHours, hours, localToday, percent, shortDate, variance } from "@/lib/format";
+import { buildManualEntry } from "@/lib/timeEntry";
+import { ApiError } from "@/lib/api";
 import { P, useAuth } from "@/store/auth";
 import type { TaskStatus } from "@/types/api";
 
@@ -109,12 +111,24 @@ export default function TaskDetail() {
   }
 
   if (task.isError || !task.data) {
+    // Review and revision visibility are granted more widely than task
+    // visibility: a Team Lead holds review.view_all and revision.view_all but
+    // only sees the tasks of their own team. Following a row from either list
+    // to another team's task therefore 404s, and "Could not load this task"
+    // reads like a broken link rather than a boundary being enforced.
+    const notVisible = task.error instanceof ApiError && task.error.status === 404;
     return (
       <div className="card">
         <ErrorState
-          title="Could not load this task"
-          message={task.error instanceof Error ? task.error.message : undefined}
-          onRetry={() => void task.refetch()}
+          title={notVisible ? "This task is outside your team" : "Could not load this task"}
+          message={
+            notVisible
+              ? "You can see the review and revision history for it, but the task itself belongs to another team lead. Ask them, or a Design Manager, if you need the detail."
+              : task.error instanceof Error
+                ? task.error.message
+                : undefined
+          }
+          onRetry={notVisible ? undefined : () => void task.refetch()}
         />
       </div>
     );
@@ -365,8 +379,9 @@ export default function TaskDetail() {
                     type="button"
                     className="btn-secondary px-2 py-1"
                     onClick={() => {
+                      logTime.reset();
                       setTimeForm({
-                        entry_date: new Date().toISOString().slice(0, 10),
+                        entry_date: localToday(),
                         hours: "",
                         description: "",
                       });
@@ -709,13 +724,16 @@ export default function TaskDetail() {
               type="button"
               className="btn-primary"
               onClick={() =>
+                // Without an explicit interval the server invents 09:00 and
+                // then refuses the entry for overlapping the previous one.
                 logTime.mutate(
-                  {
-                    task_id: t.id,
-                    entry_date: timeForm.entry_date,
+                  buildManualEntry({
+                    taskId: t.id,
+                    entryDate: timeForm.entry_date,
                     hours: Number(timeForm.hours),
                     description: timeForm.description || undefined,
-                  },
+                    existing: entries.data?.items ?? [],
+                  }),
                   { onSuccess: () => setLoggingTime(false) },
                 )
               }

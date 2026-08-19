@@ -18,9 +18,10 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2, ClipboardCheck, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { Pagination } from "@/components/ui/Filters";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -62,9 +63,13 @@ export default function Reviews() {
   const [rootCause, setRootCause] = useState("");
   const [delayReason, setDelayReason] = useState("");
   const [error, setError] = useState<unknown>(null);
+  // Which review this dialog has already claimed, so re-renders do not
+  // fire the start mutation again.
+  const claimed = useRef<string | null>(null);
 
   const queue = useReviewQueue({ enabled: canReview });
-  const all = useReviews({ page_size: 25 });
+  const [page, setPage] = useState(1);
+  const all = useReviews({ page, page_size: 25 });
   const { data: vocab } = useVocabularies();
 
   // ReviewOut carries no task status, assignee or due date, so the decision
@@ -79,7 +84,10 @@ export default function Reviews() {
 
   const isSelfReview = Boolean(task.data && task.data.assigned_to_id === user?.id);
   // Approval drives the task to Completed, which re-triggers the overdue rule.
+  // require_delay_reason is a runtime setting; when an admin turns it off the
+  // API stops asking, and the form must stop demanding it too.
   const needsDelayReason =
+    (vocab?.require_delay_reason ?? true) &&
     decision === "Approved" &&
     Boolean(task.data?.is_overdue) &&
     !task.data?.delay_reason;
@@ -92,26 +100,54 @@ export default function Reviews() {
     setRootCause("");
     setDelayReason("");
     setActive(review);
-
-    // Claim it now: a decision on a Pending review is refused by the state
-    // machine, and the reviewer would have no way to tell why.
-    if (review.status === "Pending") {
-      startReview.mutate(review.id, { onError: setError });
-    }
   };
+
+  /**
+   * Claim the review, but only once we know whose task it is.
+   *
+   * Starting a review is a state change: it stamps review_started_at, claims
+   * an unrouted review for the caller and moves the task to Under Review.
+   * Firing that the instant the dialog opened meant a lead who is also the
+   * assignee mutated the task and only then hit the self-review ban at
+   * decision time, with no way to undo what the click had already done.
+   */
+  useEffect(() => {
+    if (!active || active.status !== "Pending") return;
+    if (!task.isSuccess) return;
+    if (isSelfReview) return;
+    if (claimed.current === active.id) return;
+    claimed.current = active.id;
+    startReview.mutate(active.id, { onError: setError });
+    // startReview is a stable mutation object; re-running on it would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, task.isSuccess, isSelfReview]);
 
   const decide = () => {
     if (!active) return;
     setError(null);
 
+    // Captured now rather than read inside the callback: on the overdue path
+    // send() runs after a PATCH round trip, and the reviewer can change the
+    // decision while that is in flight. Closing over the live state would post
+    // a different verdict from the one they pressed.
+    const chosen = {
+      result: decision,
+      comments: comments || undefined,
+      category,
+      rootCause,
+    };
+
     const send = () =>
       submitDecision.mutate(
         {
-          result: decision,
-          comments: comments || undefined,
-          ...(decision === "Approved"
+          result: chosen.result,
+          comments: chosen.comments,
+          ...(chosen.result === "Approved"
             ? {}
-            : { revision_category: category, root_cause: rootCause || undefined }),
+            : {
+                revision_category: chosen.category,
+                root_cause: chosen.rootCause || undefined,
+              }),
         },
         {
           onSuccess: () => {
@@ -134,7 +170,15 @@ export default function Reviews() {
     send();
   };
 
+  // Both guards below are derived from the joined task. While that request is
+  // in flight they collapse to false, which previously left Approve enabled
+  // and let a reviewer fire a decision the API would refuse -- the self-review
+  // ban, or the missing delay reason on an overdue task. Nothing is
+  // submittable until the task that decides those rules has actually arrived.
+  const guardsKnown = task.isSuccess;
+
   const canSubmit =
+    guardsKnown &&
     !submitDecision.isPending &&
     !updateTask.isPending &&
     !isSelfReview &&
@@ -215,7 +259,19 @@ export default function Reviews() {
         </Card>
       )}
 
-      <Card title="All reviews" bodyClassName="">
+      <Card
+        title={
+          <span className="flex items-center gap-2">
+            All reviews
+            {all.data && (
+              <span className="text-2xs font-normal text-ink-500">
+                {all.data.total.toLocaleString()} total
+              </span>
+            )}
+          </span>
+        }
+        bodyClassName=""
+      >
         {all.isLoading && <SkeletonRows rows={6} />}
         {all.data && all.data.items.length === 0 && (
           <EmptyState title="No reviews yet" />
@@ -252,7 +308,24 @@ export default function Reviews() {
                     <td className="td text-xs tabular">{review.round_number}</td>
                     <td className="td text-xs text-ink-600">
                       {review.reviewer_name ?? (
-                        <span className="text-rag-amber">Unrouted</span>
+                        canReview ? (
+                          <button
+                            type="button"
+                            className="btn-secondary px-2 py-0.5 text-2xs"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              // Starting an unrouted review claims it, which is
+                              // the only way one reaches a queue at all.
+                              startReview.mutate(review.id, { onError: setError });
+                            }}
+                            disabled={startReview.isPending}
+                            title="Nobody is assigned to review this; take it yourself"
+                          >
+                            Claim
+                          </button>
+                        ) : (
+                          <span className="text-rag-amber">Unrouted</span>
+                        )
                       )}
                     </td>
                     <td className="td">
@@ -285,6 +358,15 @@ export default function Reviews() {
             </table>
           </div>
         )}
+        {all.data && all.data.total > all.data.page_size && (
+          <Pagination
+            page={all.data.page}
+            pages={all.data.pages}
+            total={all.data.total}
+            pageSize={all.data.page_size}
+            onPage={setPage}
+          />
+        )}
       </Card>
 
       <Modal
@@ -313,10 +395,18 @@ export default function Reviews() {
         <div className="space-y-4">
           <FormError error={error} />
 
+          {task.isLoading && (
+            <InlineAlert tone="info">
+              Loading the task this review is about. The decision opens once its
+              rules are known.
+            </InlineAlert>
+          )}
+
           {isSelfReview && (
             <InlineAlert tone="error">
-              This task is assigned to you. Reviewing your own work is refused —
-              route it to another reviewer.
+              This task is assigned to you, so reviewing it is refused. Nothing
+              has been changed — ask another reviewer to take it, or reassign
+              the task first.
             </InlineAlert>
           )}
 

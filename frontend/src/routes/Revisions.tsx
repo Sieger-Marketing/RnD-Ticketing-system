@@ -11,6 +11,7 @@ import { RotateCcw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { ChipFilter, FilterBar, Pagination } from "@/components/ui/Filters";
+import { FormError } from "@/components/ui/form";
 import {
   Card,
   EmptyState,
@@ -100,7 +101,7 @@ export default function Revisions() {
         <KpiCard
           label="Rework hours"
           value={hours(reworkHours)}
-          hint="Recorded on resolved revisions"
+          hint="Logged against the revisions on this page"
         />
       </div>
 
@@ -157,6 +158,15 @@ export default function Revisions() {
           Open only
         </label>
       </FilterBar>
+
+      {resolve.isError && (
+        <div className="mb-3">
+          {/* Without this a failed resolve looked identical to a successful
+              one: the spinner stopped, the row stayed Open, and nothing said
+              why. */}
+          <FormError error={resolve.error} />
+        </div>
+      )}
 
       <Card bodyClassName="">
         {isLoading && <SkeletonRows rows={8} cols={7} />}
@@ -244,14 +254,22 @@ export default function Revisions() {
                           {relative(revision.raised_date)}
                         </td>
                         <td className="td text-right text-xs tabular">
-                          {/* additional_hours is only computed on resolve, so an
-                              open revision reads 0.0 rather than "none logged". */}
-                          {isOpen ? (
-                            <span className="text-ink-400" title="Measured when resolved">
-                              {DASH}
+                          {/* additional_hours accrues as rework time is logged
+                              against the task, not only when the revision is
+                              closed. Hiding it behind a dash while it is open
+                              concealed hours that had already been recorded. */}
+                          {revision.additional_hours > 0 ? (
+                            <span title={isOpen ? "Logged so far; final on resolve" : undefined}>
+                              {hours(revision.additional_hours)}
+                              {isOpen && <span className="text-ink-400"> so far</span>}
                             </span>
                           ) : (
-                            hours(revision.additional_hours)
+                            <span
+                              className="text-ink-400"
+                              title="No rework time logged against this revision yet"
+                            >
+                              {DASH}
+                            </span>
                           )}
                         </td>
                         <td className="td">
@@ -268,11 +286,23 @@ export default function Revisions() {
                               <button
                                 type="button"
                                 className="btn-secondary px-2 py-1"
-                                onClick={() => resolve.mutate(revision.id)}
-                                disabled={resolve.isPending}
+                                onClick={() => {
+                                  resolve.reset();
+                                  resolve.mutate(revision.id);
+                                }}
+                                /* isPending is shared by every row that reads
+                                   this one observer, so the row being resolved
+                                   is identified by the id in flight. */
+                                disabled={
+                                  resolve.isPending && resolve.variables === revision.id
+                                }
                                 title="Closes the revision and totals its rework hours"
                               >
-                                {resolve.isPending ? <Spinner /> : "Resolve"}
+                                {resolve.isPending && resolve.variables === revision.id ? (
+                                  <Spinner />
+                                ) : (
+                                  "Resolve"
+                                )}
                               </button>
                             )}
                           </td>
