@@ -97,6 +97,49 @@ def overdue_tasks_query(scope_ids: list[uuid.UUID] | None = None, today: date | 
     return stmt
 
 
+#: A release still running. Approved counts as finished: the drawings are out,
+#: and only the formal close remains.
+_OPEN_RELEASE_VALUES = [
+    s.value
+    for s in ReleaseStatus
+    if s not in {ReleaseStatus.COMPLETED, ReleaseStatus.CANCELLED, ReleaseStatus.APPROVED}
+]
+
+_OPEN_PROJECT_VALUES = [
+    s.value
+    for s in ProjectStatus
+    if s not in {ProjectStatus.COMPLETED, ProjectStatus.CANCELLED}
+]
+
+
+def live_delay_days(
+    planned_end: date | None, status: str, open_values: list[str], today: date
+) -> int:
+    """Days past the planned end, computed now rather than read from a column.
+
+    The stored delay_days columns are only as fresh as the last sweep, and
+    nothing in this application runs one on a schedule. A project nobody
+    touched would otherwise keep yesterday's delay -- and therefore yesterday's
+    colour -- which is the one thing a health indicator must never do. Dates and
+    today are enough to answer this, so health asks them directly and the stored
+    column stays a convenience for lists and sorting.
+    """
+    return kpi.delay_days(planned_end, status in open_values, today)
+
+
+def delivered_late_days(
+    actual_end: date | None, planned_end: date | None
+) -> int:
+    """How late a finished item landed. Zero when it landed on or before time.
+
+    Deliberately not delay_days: that measures an *open* item against today and
+    is zero for anything finished, so reading it for a delivered release
+    reported every late delivery as on time as soon as a sweep ran.
+    """
+    variance = kpi.schedule_variance_days(actual_end, planned_end)
+    return max(variance, 0) if variance is not None else 0
+
+
 def sweep_delays(db: Session, today: date | None = None) -> dict[str, int]:
     """Recompute delay_days across tasks, releases and projects.
 
@@ -113,18 +156,12 @@ def sweep_delays(db: Session, today: date | None = None) -> dict[str, int]:
         if refresh_task_delay(db, task, today) != before:
             counts["tasks"] += 1
 
-    open_release_values = [
-        s.value
-        for s in ReleaseStatus
-        if s
-        not in {ReleaseStatus.COMPLETED, ReleaseStatus.CANCELLED, ReleaseStatus.APPROVED}
-    ]
     for release in db.execute(
         select(DesignRelease).where(DesignRelease.planned_end.is_not(None))
     ).scalars():
         before = release.delay_days
         release.delay_days = kpi.delay_days(
-            release.planned_end, release.status in open_release_values, today
+            release.planned_end, release.status in _OPEN_RELEASE_VALUES, today
         )
         if release.delay_days != before:
             counts["releases"] += 1
@@ -174,9 +211,10 @@ def evaluate_release_health(
     }:
         # Open-task and blocker findings would be stale by definition here, and
         # effort overrun is reported as a number rather than a colour.
-        if release.status == ReleaseStatus.COMPLETED.value and release.delay_days:
+        late_by = delivered_late_days(release.actual_end, release.planned_end)
+        if release.status == ReleaseStatus.COMPLETED.value and late_by:
             level = _band(
-                release.delay_days,
+                late_by,
                 float(rules.get("amber_delay_days", 2)),
                 float(rules.get("red_delay_days", 5)),
             )
@@ -185,15 +223,18 @@ def evaluate_release_health(
                     Finding(
                         level,
                         "delivered_late",
-                        f"Delivered {release.delay_days} day(s) after the planned end",
-                        release.delay_days,
+                        f"Delivered {late_by} day(s) after the planned end",
+                        late_by,
                     )
                 )
         return _worst(findings), [f.as_dict() for f in findings]
 
-    if release.delay_days:
+    delay = live_delay_days(
+        release.planned_end, release.status, _OPEN_RELEASE_VALUES, today
+    )
+    if delay:
         level = _band(
-            release.delay_days,
+            delay,
             float(rules.get("amber_delay_days", 2)),
             float(rules.get("red_delay_days", 5)),
         )
@@ -202,8 +243,8 @@ def evaluate_release_health(
                 Finding(
                     level,
                     "release_behind_schedule",
-                    f"Release is {release.delay_days} day(s) behind schedule",
-                    release.delay_days,
+                    f"Release is {delay} day(s) behind schedule",
+                    delay,
                 )
             )
 
@@ -322,9 +363,12 @@ def evaluate_project_health(
         ProjectStatus.COMPLETED.value,
         ProjectStatus.CANCELLED.value,
     }:
-        if project.status == ProjectStatus.COMPLETED.value and project.delay_days:
+        landed_late_by = delivered_late_days(
+            project.actual_completion_date, project.required_completion_date
+        )
+        if project.status == ProjectStatus.COMPLETED.value and landed_late_by:
             level = _band(
-                project.delay_days,
+                landed_late_by,
                 float(rules.get("amber_delay_days", 2)),
                 float(rules.get("red_delay_days", 5)),
             )
@@ -333,15 +377,18 @@ def evaluate_project_health(
                     Finding(
                         level,
                         "delivered_late",
-                        f"Delivered {project.delay_days} day(s) after the required date",
-                        project.delay_days,
+                        f"Delivered {landed_late_by} day(s) after the required date",
+                        landed_late_by,
                     )
                 )
         return _worst(findings), [f.as_dict() for f in findings]
 
-    if project.delay_days:
+    project_delay = live_delay_days(
+        project.required_completion_date, project.status, _OPEN_PROJECT_VALUES, today
+    )
+    if project_delay:
         level = _band(
-            project.delay_days,
+            project_delay,
             float(rules.get("amber_delay_days", 2)),
             float(rules.get("red_delay_days", 5)),
         )
@@ -350,22 +397,29 @@ def evaluate_project_health(
                 Finding(
                     level,
                     "project_behind_schedule",
-                    f"Project is {project.delay_days} day(s) past its required date",
-                    project.delay_days,
+                    f"Project is {project_delay} day(s) past its required date",
+                    project_delay,
                 )
             )
 
     # Releases that are themselves late are named individually -- a director
     # needs to know which one, not just that something is wrong.
+    # Selected on the dates rather than on the stored delay_days, so a project
+    # nobody has touched since its releases slipped still names them.
     late_releases = db.execute(
         select(DesignRelease).where(
             DesignRelease.project_id == project.id,
-            DesignRelease.delay_days > 0,
+            DesignRelease.planned_end.is_not(None),
+            DesignRelease.planned_end < today,
+            DesignRelease.status.in_(_OPEN_RELEASE_VALUES),
         )
     ).scalars().all()
     for release in late_releases:
+        release_delay = live_delay_days(
+            release.planned_end, release.status, _OPEN_RELEASE_VALUES, today
+        )
         level = _band(
-            release.delay_days,
+            release_delay,
             float(rules.get("amber_delay_days", 2)),
             float(rules.get("red_delay_days", 5)),
         )
@@ -375,8 +429,8 @@ def evaluate_project_health(
                     level,
                     "release_delayed",
                     f"Release {release.code} ({release.name}) is "
-                    f"{release.delay_days} day(s) behind schedule",
-                    release.delay_days,
+                    f"{release_delay} day(s) behind schedule",
+                    release_delay,
                 )
             )
 
@@ -471,11 +525,25 @@ def evaluate_project_health(
 
 
 def refresh_health(db: Session, project: Project, today: date | None = None) -> None:
-    """Recompute health for a project and each of its releases."""
+    """Recompute health for a project and each of its releases.
+
+    The stored delay_days columns are brought up to date at the same time. The
+    health findings no longer depend on them -- they compute the delay from the
+    dates -- but lists, sorting and filters still read the columns, and this is
+    the moment we already have the rows in hand.
+    """
     today = today or date.today()
     for release in project.releases:
+        release.delay_days = kpi.delay_days(
+            release.planned_end, release.status in _OPEN_RELEASE_VALUES, today
+        )
         release.health, release.health_reasons = evaluate_release_health(
             db, release, today
         )
+    project.delay_days = kpi.delay_days(
+        project.required_completion_date,
+        project.status in _OPEN_PROJECT_VALUES,
+        today,
+    )
     project.health, project.health_reasons = evaluate_project_health(db, project, today)
     db.flush()

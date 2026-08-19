@@ -15,7 +15,7 @@ import uuid
 from collections import defaultdict
 from datetime import date, timedelta
 
-from sqlalchemy import Select, case, func, or_, select
+from sqlalchemy import Select, case, false, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import (
@@ -217,8 +217,18 @@ def department_metrics(
         "first_pass_approval_percent": kpi.first_pass_approval_percent(
             len(first_pass_tasks), len(submitted_tasks)
         ),
+        # Both halves of the ratio are the same period. Counting every revision
+        # ever raised against one period's completed tasks reported rates well
+        # over 100%, and forcing the denominator to a minimum of 1 turned a
+        # quiet period into a four-figure percentage instead of the dash that
+        # says "nothing finished, so there is nothing to divide by".
         "revision_rate_percent": kpi.revision_rate(
-            _count(db, Revision), max(completed_total, 1)
+            _count(
+                db,
+                Revision,
+                func.date(Revision.created_at).between(date_from, date_to),
+            ),
+            completed_total,
         ),
         "average_cycle_time_hours": kpi.average(cycle_times),
         "average_review_turnaround_hours": kpi.average(
@@ -577,8 +587,17 @@ def team_lead_metrics(
         "team_utilization_percent": kpi.utilization(allocated, available),
         "team_on_time_percent": kpi.on_time_percent(on_time, completed_total),
         "rework_percent": kpi.rework_percent(rework, actual),
+        # Counted over the period, like the denominator, rather than summing
+        # each release's all-time revision_count against this period's
+        # completions.
         "revision_rate_percent": kpi.revision_rate(
-            sum(int(r.revision_count or 0) for r in releases), max(completed_total, 1)
+            _count(
+                db,
+                Revision,
+                Revision.release_id.in_([r.id for r in releases]) if releases else false(),
+                func.date(Revision.created_at).between(date_from, date_to),
+            ),
+            completed_total,
         ),
         "average_review_turnaround_hours": kpi.average(turnarounds),
         "first_pass_approval_percent": _first_pass_for_tasks(db, task_ids)["percent"],

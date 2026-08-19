@@ -641,31 +641,37 @@ class TestFinishedWorkHealth:
     """
 
     def test_a_completed_release_is_not_red_for_overrunning_effort(self, db):
+        from datetime import date
+
         from sqlalchemy import select
 
         from app.models.release import DesignRelease
         from app.services import health_service
 
-        release = db.execute(
-            select(DesignRelease).where(
-                DesignRelease.status == "Completed",
-                DesignRelease.delay_days == 0,
-                DesignRelease.estimated_hours > 0,
-                DesignRelease.actual_hours > DesignRelease.estimated_hours,
-            )
-        ).scalars().first()
-        if release is None:
-            import pytest
-
-            pytest.skip("no completed over-effort release in this dataset")
+        # Built rather than hunted for: the seeded data does not reliably
+        # contain a release of this exact shape, and a test that skips itself
+        # protects nothing.
+        release = DesignRelease(
+            project_id=db.execute(select(DesignRelease.project_id).limit(1)).scalar(),
+            code="DR-TEST-OVERRUN",
+            name="Delivered on time, took longer than planned",
+            release_type="Mechanical Design",
+            sequence_number=98,
+            status="Completed",
+            planned_end=date.today(),
+            actual_end=date.today(),
+            estimated_hours=40,
+            actual_hours=90,
+        )
 
         health, reasons = health_service.evaluate_release_health(db, release)
         assert health == "GREEN", (
-            f"{release.code} delivered on time but is {health}: {reasons}"
+            f"delivered on time but reported {health}: {reasons}"
         )
+        assert not any(r["code"] == "effort_overrun" for r in reasons)
 
     def test_a_completed_release_delivered_late_still_says_so(self, db):
-        from datetime import date
+        from datetime import date, timedelta
 
         from app.models.release import DesignRelease
         from app.services import health_service
@@ -679,8 +685,12 @@ class TestFinishedWorkHealth:
             release_type="Mechanical Design",
             sequence_number=99,
             status="Completed",
-            delay_days=9,
+            # Lateness on a finished release is actual minus planned. It used
+            # to be read from delay_days, which a sweep resets to zero the
+            # moment the release closes -- so every late delivery quietly
+            # became an on-time one.
             planned_end=date.today(),
+            actual_end=date.today() + timedelta(days=9),
         )
         health, reasons = health_service.evaluate_release_health(db, release)
         assert health == "RED"
