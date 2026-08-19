@@ -106,6 +106,8 @@ class DesignRelease(Base, BusinessEntity):
     )
     health_reasons: Mapped[list | None] = mapped_column(JSONB, default=list)
 
+    # Design Sub-Qualities: how many drawings this assembly releases.
+    dsq_count: Mapped[int | None] = mapped_column(Integer)
     revision_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     delay_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     delay_reason: Mapped[str | None] = mapped_column(String(80))

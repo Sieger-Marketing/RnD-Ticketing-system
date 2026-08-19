@@ -61,6 +61,11 @@ class Project(Base, BusinessEntity):
     project_type: Mapped[str | None] = mapped_column(String(80), index=True)
     # Commercial references. Free text today; these become the Salesforce
     # Sales Order / Work Order links once an adapter is wired up.
+    # Bay capacity of the system being designed. The design team plan around
+    # it, so it belongs on the project rather than in a description.
+    car_count: Mapped[int | None] = mapped_column(Integer)
+    # Good For Construction: the date the design is frozen for manufacture.
+    gfc_date: Mapped[date | None] = mapped_column(Date)
     sales_order: Mapped[str | None] = mapped_column(String(80), index=True)
     work_order: Mapped[str | None] = mapped_column(String(80), index=True)
 
