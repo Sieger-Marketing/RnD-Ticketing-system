@@ -34,9 +34,12 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+logger = logging.getLogger(__name__)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=settings.CORS_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,5 +66,10 @@ def health_db() -> dict:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
         return {"status": "ok", "database": "reachable"}
-    except Exception as exc:  # pragma: no cover - depends on environment
-        return {"status": "degraded", "database": "unreachable", "detail": str(exc)[:200]}
+    except Exception:  # pragma: no cover - depends on environment
+        # This probe is unauthenticated, so it says whether the database
+        # answers and nothing else. A driver error carries the host, port and
+        # sometimes the user, which is not something to hand to the internet;
+        # it goes to the server log, where the operator can read it.
+        logger.exception("Database readiness probe failed")
+        return {"status": "degraded", "database": "unreachable"}

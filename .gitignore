@@ -14,6 +14,13 @@ dist/
 # Secrets & local state
 .env
 .env.local
+# Any other .env variant is assumed to hold secrets. The two that do not --
+# the checked-in example and the build-time frontend config -- are readmitted
+# explicitly, so a new .env.something is ignored by default rather than
+# committed by accident.
+.env*
+!.env.example
+!frontend/.env.production
 *.local
 
 # Uploaded files
