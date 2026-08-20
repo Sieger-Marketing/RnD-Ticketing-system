@@ -22,7 +22,7 @@ from app.schemas.execution import (
     SettingUpdate,
     StatusHistoryOut,
 )
-from app.services import audit_service, settings_service
+from app.services import audit_service, cleanup_service, settings_service
 
 router = APIRouter(tags=["settings"])
 
@@ -221,3 +221,53 @@ def status_history(
         .all()
     )
     return [StatusHistoryOut.model_validate(r) for r in rows]
+
+
+@router.post("/admin/purge-demo-data")
+def purge_demo_data(
+    request: Request,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_permission(P.SETTINGS_MANAGE)),
+    apply: bool = Query(False, description="Without this, nothing is written."),
+    codes: str = Query("", description="Extra project codes, comma separated."),
+) -> dict:
+    """Remove the demo department and anything the tests left behind.
+
+    The command-line script does the same thing and shares the same rules. This
+    exists because a managed host may not offer a shell on the plan you are on,
+    and a database full of demo data is hardest to do anything about precisely
+    when you cannot reach it.
+
+    Reads only unless `apply` is true, and returns what it would remove plus
+    what would survive, so the decision is made on the list rather than on
+    trust. The administrator account is never removed.
+    """
+    found = cleanup_service.find(db, extra_codes=codes.split(",") if codes else None)
+    payload = {
+        "applied": False,
+        "would_remove": found.as_dict(),
+        "would_remain": cleanup_service.survivors(db, found),
+    }
+
+    if not apply:
+        return payload
+
+    removed = cleanup_service.purge(db, found)
+
+    audit_service.record(
+        db,
+        entity_type="app_setting",
+        entity_id=actor.id,
+        entity_code="PURGE",
+        action=AuditAction.DELETE,
+        actor=actor,
+        summary=(
+            f"Removed demo and test data: {removed['projects']} project(s), "
+            f"{removed['customers']} customer(s), {removed['users']} user(s)"
+        ),
+        context=client_context(request),
+    )
+
+    payload["applied"] = True
+    payload["removed"] = removed
+    return payload
