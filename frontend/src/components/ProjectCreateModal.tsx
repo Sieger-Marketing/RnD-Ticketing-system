@@ -1,4 +1,6 @@
+import { Plus } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
@@ -118,17 +120,38 @@ export function ProjectCreateModal({
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Customer" htmlFor="customer">
-            <Select
-              id="customer"
-              value={form.customer_id}
-              onChange={(e) => set("customer_id")(e.target.value)}
-              placeholder="Select a customer"
-              options={(customers?.items ?? []).map((c) => ({
-                value: c.id,
-                label: `${c.name} (${c.customer_code})`,
-              }))}
-            />
+          <Field
+            label="Customer"
+            htmlFor="customer"
+            hint={
+              (customers?.items ?? []).length === 0
+                ? "None on file yet — add the first one."
+                : undefined
+            }
+          >
+            <div className="flex items-center gap-2">
+              <Select
+                id="customer"
+                className="flex-1"
+                value={form.customer_id}
+                onChange={(e) => set("customer_id")(e.target.value)}
+                placeholder="Select a customer"
+                options={(customers?.items ?? []).map((c) => ({
+                  value: c.id,
+                  label: `${c.name} (${c.customer_code})`,
+                }))}
+              />
+              {/* A project needs a customer, so discovering there are none
+                  must not mean abandoning the half-filled form. */}
+              <Link
+                to="/catalogue"
+                className="btn-secondary shrink-0 px-2"
+                title="Add a customer"
+                aria-label="Add a customer"
+              >
+                <Plus className="h-4 w-4" />
+              </Link>
+            </div>
           </Field>
 
           <Field

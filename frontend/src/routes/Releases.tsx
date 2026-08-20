@@ -2,7 +2,8 @@
  * Design release list (spec section 8).
  */
 
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { ChipFilter, FilterBar, Pagination, SearchInput } from "@/components/ui/Filters";
 import {
@@ -15,6 +16,7 @@ import {
   SkeletonRows,
   StatusBadge,
 } from "@/components/ui/primitives";
+import { P, useAuth } from "@/store/auth";
 import { useReleases } from "@/hooks/queries";
 import { DASH, hours, shortDate, variance } from "@/lib/format";
 import { HEALTH_LEVELS, RELEASE_STATUSES } from "@/lib/vocab";
@@ -52,6 +54,8 @@ export default function Releases() {
     sort: "-planned_end",
   });
 
+  const can = useAuth((state) => state.can);
+
   const hasFilters =
     Boolean(search) || status.length > 0 || health.length > 0 || overdueOnly;
 
@@ -63,6 +67,14 @@ export default function Releases() {
           data
             ? `${data.total.toLocaleString()} release${data.total === 1 ? "" : "s"} visible to you`
             : undefined
+        }
+        actions={
+          can(P.releaseCreate) && (
+            <Link to="/projects" className="btn-primary">
+              <Plus className="h-4 w-4" />
+              Add a release
+            </Link>
+          )
         }
       />
 

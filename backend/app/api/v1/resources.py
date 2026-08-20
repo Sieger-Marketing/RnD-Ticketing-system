@@ -168,7 +168,15 @@ def assignment_board(
         end = end or max(task.planned_end or horizon, horizon)
 
     start, end = _window(start, end)
-    candidates = _candidate_users(db, scope)
+
+    # Every designer and team lead, not just the caller's direct reports.
+    # Narrowing this to a reporting line meant a team lead could only give work
+    # to people who happened to be recorded underneath them -- and where no
+    # reporting lines have been entered yet, that is nobody at all, so the
+    # picker offered the lead themselves and stopped. Who may be *given* work is
+    # a different question from whose capacity you may study, and the answer to
+    # the first one is anyone who does design work.
+    candidates = analytics_service.execution_staff(db)
     rows = capacity_service.recommend_assignees(
         db,
         candidates=candidates,

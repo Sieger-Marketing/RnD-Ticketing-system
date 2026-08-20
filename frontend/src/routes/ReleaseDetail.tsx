@@ -3,10 +3,11 @@
  * assign a lead, accept, generate tasks from a template, then complete.
  */
 
-import { AlertTriangle, ArrowLeft, Check, Sparkles, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Plus, Sparkles, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { TaskCreateModal } from "@/components/TaskCreateModal";
 import { TaskTable } from "@/components/TaskTable";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
@@ -44,6 +45,7 @@ export default function ReleaseDetail() {
   const { can, user } = useAuth();
 
   const [assigning, setAssigning] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
   const [leadId, setLeadId] = useState("");
   const [completing, setCompleting] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
@@ -134,6 +136,17 @@ export default function ReleaseDetail() {
         }
         actions={
           <>
+            {can(P.taskCreate) && !isFinished && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setAddingTask(true)}
+              >
+                <Plus className="h-4 w-4" />
+                Add task
+              </button>
+            )}
+
             {can(P.releaseAssignLead) && !isFinished && (
               <button
                 type="button"
@@ -533,6 +546,19 @@ export default function ReleaseDetail() {
           )}
         </div>
       </Modal>
+
+      {addingTask && releaseId && (
+        <TaskCreateModal
+          releaseId={releaseId}
+          releaseName={r.name}
+          onClose={() => setAddingTask(false)}
+          onCreated={() => {
+            setAddingTask(false);
+            void release.refetch();
+            void tasks.refetch();
+          }}
+        />
+      )}
     </>
   );
 }
