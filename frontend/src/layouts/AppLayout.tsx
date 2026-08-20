@@ -8,10 +8,12 @@
 
 import clsx from "clsx";
 import {
+  BarChart3,
   Bell,
   ClipboardCheck,
   Clock,
   ChevronRight,
+  FileDown,
   FileStack,
   FolderKanban,
   GitBranch,
@@ -117,6 +119,18 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         to: "/timesheet",
         label: "Timesheet",
         icon: <Clock className="h-4 w-4" />,
+      },
+      {
+        to: "/insights",
+        label: "Insights",
+        icon: <BarChart3 className="h-4 w-4" />,
+        anyOf: ["analytics.view_department", "analytics.view_team"],
+      },
+      {
+        to: "/reports",
+        label: "Reports",
+        icon: <FileDown className="h-4 w-4" />,
+        anyOf: ["report.export"],
       },
       {
         to: "/standards",

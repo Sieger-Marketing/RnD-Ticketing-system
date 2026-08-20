@@ -16,6 +16,7 @@ import {
 
 import { del, get, patch, post, put } from "@/lib/api";
 import type {
+  Breakdown,
   CapacitySummary,
   Customer,
   DepartmentMetrics,
@@ -35,6 +36,7 @@ import type {
   ReleaseDetail,
   ReleaseSummary,
   Review,
+  ReportCatalogue,
   Revision,
   Role,
   Skill,
@@ -946,5 +948,31 @@ export function useResetPassword() {
   return useMutation({
     mutationFn: (id: UUID) => post<PasswordReset>(`/api/users/${id}/reset-password`, {}),
     onSuccess: () => invalidatePeople(qc),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Insights and reports
+// ---------------------------------------------------------------------------
+
+export function useBreakdown(params: {
+  dimension: string;
+  date_from: string;
+  date_to: string;
+  within_dimension?: string;
+  within_key?: string;
+}) {
+  return useQuery({
+    queryKey: ["breakdown", params],
+    queryFn: () => get<Breakdown>("/api/analytics/breakdown", params),
+    staleTime: 60_000,
+  });
+}
+
+export function useReportCatalogue() {
+  return useQuery({
+    queryKey: ["report-catalogue"],
+    queryFn: () => get<ReportCatalogue>("/api/reports"),
+    staleTime: 10 * 60_000,
   });
 }

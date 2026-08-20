@@ -20,8 +20,10 @@ import NotFound from "@/routes/NotFound";
 import ProjectDetail from "@/routes/ProjectDetail";
 import Projects from "@/routes/Projects";
 import ReleaseDetail from "@/routes/ReleaseDetail";
+import Insights from "@/routes/Insights";
 import Kanban from "@/routes/Kanban";
 import Releases from "@/routes/Releases";
+import Reports from "@/routes/Reports";
 import Reviews from "@/routes/Reviews";
 import Revisions from "@/routes/Revisions";
 import Standards from "@/routes/Standards";
@@ -135,6 +137,23 @@ export default function App() {
         {/* The release standard is reference material for the whole team --
             a designer benefits from seeing where their release sits. */}
         <Route path="/standards" element={<Standards />} />
+
+        <Route
+          path="/insights"
+          element={
+            <RequirePermission anyOf={["analytics.view_department", "analytics.view_team"]}>
+              <Insights />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <RequirePermission anyOf={["report.export"]}>
+              <Reports />
+            </RequirePermission>
+          }
+        />
 
         <Route
           path="/people"

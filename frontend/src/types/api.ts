@@ -657,3 +657,65 @@ export interface PasswordReset {
   full_name: string;
   password: string;
 }
+
+/** One row of a performance breakdown, whatever it is cut by. */
+export interface BreakdownRow {
+  key: UUID | null;
+  label: string;
+  projects: number;
+  releases: number;
+  tasks_completed: number;
+  tasks_open: number;
+  tasks_overdue: number;
+  planned_hours: number;
+  actual_hours: number;
+  rework_hours: number;
+  efficiency_percent: number | null;
+  effort_variance_hours: number;
+  on_time_percent: number | null;
+  rework_percent: number | null;
+  first_pass_approval_percent: number | null;
+  revision_rate_percent: number | null;
+  average_cycle_time_hours: number | null;
+  health: { RED: number; AMBER: number; GREEN: number };
+}
+
+export interface BreakdownTotals {
+  tasks_completed: number;
+  tasks_open: number;
+  tasks_overdue: number;
+  planned_hours: number;
+  actual_hours: number;
+  rework_hours: number;
+  efficiency_percent: number | null;
+  effort_variance_hours: number;
+  on_time_percent: number | null;
+  rework_percent: number | null;
+  first_pass_approval_percent: number | null;
+  revision_rate_percent: number | null;
+  average_cycle_time_hours: number | null;
+}
+
+export interface Breakdown {
+  dimension: string;
+  row_label: string;
+  period: { from: string; to: string };
+  within: { dimension: string; key: string } | null;
+  rows: BreakdownRow[];
+  totals: BreakdownTotals;
+}
+
+export interface ReportDefinition {
+  key: string;
+  title: string;
+  description: string;
+  parameter: string;
+  parameter_label: string;
+  parameter_options?: string[];
+  accepts_period?: boolean;
+}
+
+export interface ReportCatalogue {
+  formats: string[];
+  reports: ReportDefinition[];
+}

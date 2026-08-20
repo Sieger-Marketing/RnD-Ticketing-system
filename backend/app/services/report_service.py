@@ -29,7 +29,7 @@ from app.models.project import Project
 from app.models.release import DesignRelease
 from app.models.task import Task
 from app.models.user import User
-from app.services import analytics_service, capacity_service, kpi
+from app.services import analytics_service, breakdown_service, capacity_service, kpi
 from app.services.export_service import Report, Section
 
 _OPEN_TASKS = [s.value for s in OPEN_TASK_STATUSES]
@@ -567,3 +567,98 @@ BUILDERS = {
     "weekly": weekly_report,
     "monthly": monthly_report,
 }
+
+
+_BREAKDOWN_TITLES = {
+    "product": "Performance by Product",
+    "customer": "Performance by Customer",
+    "team": "Performance by Team",
+    "project": "Performance by Project",
+}
+
+
+def breakdown_report(
+    db: Session,
+    *,
+    dimension: str = "product",
+    date_from: date | None = None,
+    date_to: date | None = None,
+    actor: User | None = None,
+) -> Report:
+    """The dashboard's breakdown table, in a form that can be sent to someone.
+
+    Same call as the screen makes, so a figure argued over in a meeting and the
+    same figure on the dashboard cannot disagree. The only thing this adds is
+    column headings and an order.
+    """
+    date_to = date_to or date.today()
+    date_from = date_from or (date_to - timedelta(days=30))
+
+    data = breakdown_service.breakdown(
+        db, dimension=dimension, date_from=date_from, date_to=date_to
+    )
+    totals = data["totals"]
+    label = data["row_label"]
+
+    rows = [
+        [
+            row["label"],
+            row["projects"],
+            row["tasks_completed"],
+            _round(row["planned_hours"]),
+            _round(row["actual_hours"]),
+            row["efficiency_percent"],
+            row["on_time_percent"],
+            row["rework_percent"],
+            row["first_pass_approval_percent"],
+            row["revision_rate_percent"],
+            row["tasks_overdue"],
+            row["health"]["RED"],
+        ]
+        for row in data["rows"]
+    ]
+
+    return Report(
+        key=f"breakdown-{dimension}",
+        title=_BREAKDOWN_TITLES.get(dimension, "Performance breakdown"),
+        period_label=f"{date_from.isoformat()} to {date_to.isoformat()}",
+        generated_at=datetime.now(UTC),
+        generated_by=actor.full_name if actor else None,
+        summary=[
+            ("Tasks completed", totals["tasks_completed"]),
+            ("Planned hours", _round(totals["planned_hours"])),
+            ("Actual hours", _round(totals["actual_hours"])),
+            ("Efficiency %", totals["efficiency_percent"]),
+            ("On time %", totals["on_time_percent"]),
+            ("Rework %", totals["rework_percent"]),
+            ("First-pass approval %", totals["first_pass_approval_percent"]),
+            ("Revision rate %", totals["revision_rate_percent"]),
+        ],
+        sections=[
+            Section(
+                title=f"{label} performance",
+                columns=[
+                    label,
+                    "Projects",
+                    "Tasks done",
+                    "Planned h",
+                    "Actual h",
+                    "Efficiency %",
+                    "On time %",
+                    "Rework %",
+                    "First pass %",
+                    "Revision rate %",
+                    "Overdue now",
+                    "Red projects",
+                ],
+                rows=rows,
+                note=(
+                    "Hours and percentages cover work completed in the period. "
+                    "'Overdue now' and 'Red projects' are a snapshot taken when "
+                    "the report was generated, not a figure for the period. A "
+                    "blank cell means there was not enough data to compute the "
+                    "figure -- it is not a zero."
+                ),
+            )
+        ],
+    )

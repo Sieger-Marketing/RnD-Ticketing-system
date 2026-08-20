@@ -26,7 +26,13 @@ from app.models.release import DesignRelease
 from app.models.task import Task
 from app.models.user import Role, User, UserRole
 from app.api.v1.tasks import task_summary
-from app.services import analytics_service, capacity_service, health_service, kpi
+from app.services import (
+    analytics_service,
+    breakdown_service,
+    capacity_service,
+    health_service,
+    kpi,
+)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -50,6 +56,44 @@ def department(
     date_to: date | None = None,
 ) -> dict:
     return analytics_service.department_metrics(db, date_from=date_from, date_to=date_to)
+
+
+@router.get("/breakdown")
+def breakdown(
+    db: Session = Depends(get_db),
+    _: User = Depends(
+        require_any_permission(P.ANALYTICS_VIEW_DEPARTMENT, P.ANALYTICS_VIEW_TEAM)
+    ),
+    dimension: str = Query("product", pattern="^(product|customer|team|project)$"),
+    date_from: date | None = None,
+    date_to: date | None = None,
+    within_dimension: str | None = Query(
+        None, pattern="^(product|customer|team|project)$"
+    ),
+    within_key: uuid.UUID | None = None,
+) -> dict:
+    """The same figures, cut by product, customer, team or project.
+
+    `within_dimension` and `within_key` together narrow the whole table to one
+    group -- the drill-down. Asking for dimension=project within a product
+    gives that product's projects described in exactly the columns the products
+    themselves were, so the table does not change shape when a reader clicks
+    into a row.
+    """
+    date_to = date_to or date.today()
+    date_from = date_from or (date_to - timedelta(days=30))
+
+    within = None
+    if within_dimension and within_key:
+        within = (within_dimension, within_key)
+
+    return breakdown_service.breakdown(
+        db,
+        dimension=dimension,
+        date_from=date_from,
+        date_to=date_to,
+        within=within,
+    )
 
 
 @router.get("/trends")

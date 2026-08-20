@@ -9,12 +9,14 @@ when the truth is that nobody finished anything to measure.
 
 from __future__ import annotations
 
+import re
+
 import io
 
 import pytest
 
 FORMATS = ["json", "csv", "xlsx", "pdf"]
-REPORTS = ["daily", "weekly", "monthly"]
+REPORTS = ["daily", "weekly", "monthly", "breakdown"]
 
 
 class TestReportAccess:
@@ -51,7 +53,13 @@ class TestReportFormats:
     def test_downloads_are_real_files_with_a_filename(self, manager, key):
         pdf = manager.get(f"/api/reports/{key}", params={"format": "pdf"})
         assert pdf.content.startswith(b"%PDF"), "not a PDF"
-        assert f'filename="{key}-report-' in pdf.headers["content-disposition"]
+        # A report that varies by parameter names the parameter in the file,
+        # so several exports can sit in one downloads folder and still be
+        # told apart: breakdown-product-report-20260819.pdf.
+        assert re.search(
+            rf'filename="{key}[a-z-]*-report-\d{{8}}\.pdf"',
+            pdf.headers["content-disposition"],
+        ), pdf.headers["content-disposition"]
 
         xlsx = manager.get(f"/api/reports/{key}", params={"format": "xlsx"})
         assert xlsx.content.startswith(b"PK"), "not a zip, so not an xlsx"

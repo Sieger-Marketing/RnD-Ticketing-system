@@ -57,6 +57,18 @@ def catalogue(
                 "parameter_label": "Any date in the week",
             },
             {
+                "key": "breakdown",
+                "title": "Performance Breakdown",
+                "description": (
+                    "Efficiency, on-time delivery, rework and first-pass "
+                    "approval cut by product, customer, team or project."
+                ),
+                "parameter": "dimension",
+                "parameter_label": "Cut by",
+                "parameter_options": ["product", "customer", "team", "project"],
+                "accepts_period": True,
+            },
+            {
                 "key": "monthly",
                 "title": "Monthly Management Report",
                 "description": (
@@ -126,4 +138,22 @@ def monthly(
     format: str = Query("json", pattern="^(json|csv|xlsx|pdf)$"),
 ):
     report = report_service.monthly_report(db, month_of=month_of, actor=user)
+    return _respond(report, format)
+
+@router.get("/breakdown")
+def breakdown(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission(P.REPORT_EXPORT)),
+    dimension: str = Query("product", pattern="^(product|customer|team|project)$"),
+    date_from: date | None = None,
+    date_to: date | None = None,
+    format: str = Query("json", pattern="^(json|csv|xlsx|pdf)$"),
+):
+    report = report_service.breakdown_report(
+        db,
+        dimension=dimension,
+        date_from=date_from,
+        date_to=date_to,
+        actor=user,
+    )
     return _respond(report, format)

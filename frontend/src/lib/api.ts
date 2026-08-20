@@ -196,3 +196,37 @@ export async function del<T>(url: string): Promise<T> {
   const { data } = await http.delete<T>(url);
   return data;
 }
+
+/**
+ * Fetch a file the server generates, and hand it to the browser.
+ *
+ * Not a plain link: the export endpoints require the bearer token, and an
+ * <a href> carries no headers. So the file is fetched as a blob and saved
+ * under the name the server chose, which is why the API exposes
+ * Content-Disposition to the browser.
+ */
+export async function download(
+  url: string,
+  params?: Record<string, unknown>,
+  fallbackName = "report",
+): Promise<void> {
+  const response = await http.get(url, {
+    params: cleanParams(params ?? {}),
+    responseType: "blob",
+  });
+
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const match = /filename="?([^"]+)"?/.exec(disposition);
+  const name = match?.[1] ?? fallbackName;
+
+  const href = URL.createObjectURL(response.data as Blob);
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = name;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  // Revoked on the next tick: revoking synchronously races the click in
+  // Safari and the download silently does nothing.
+  window.setTimeout(() => URL.revokeObjectURL(href), 0);
+}
