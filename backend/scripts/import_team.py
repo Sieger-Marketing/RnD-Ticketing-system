@@ -114,6 +114,8 @@ def main() -> int:
                 user.employee_code = employee_code
                 user.full_name = full_name
                 user.department = user.department or DEFAULT_DEPARTMENT
+                if person.get("designation"):
+                    user.designation = person["designation"]
                 if args.reset_passwords:
                     password = new_password()
                     user.hashed_password = hash_password(password)
@@ -150,7 +152,34 @@ def main() -> int:
                 UserRole(user_id=user.id, role_id=roles[role_name].id, is_primary=True)
             )
 
+        db.flush()
+
+        # Reporting lines in a second pass: a designer may be listed before the
+        # lead they report to, and a one-pass import would silently drop the
+        # link. Resolved by employee code so the roster stays readable.
+        by_code = {
+            u.employee_code: u
+            for u in db.execute(
+                select(User).where(User.employee_code.is_not(None))
+            ).scalars()
+        }
+        lines = 0
+        for person in people:
+            target = person.get("reports_to")
+            if not target:
+                continue
+            user = by_code.get(person["employee_code"].strip().upper())
+            manager = by_code.get(target.strip().upper())
+            if user is None or manager is None:
+                print(f"  ! {person['employee_code']} -> {target}: one of them is missing")
+                continue
+            if args.apply and user.reports_to_id != manager.id:
+                user.reports_to_id = manager.id
+                lines += 1
+
         print(f"Roster: {len(people)} people")
+        if lines:
+            print(f"  reporting lines set: {lines}")
         print(f"  to create: {len(created) if not args.apply else len(created)}")
         print(f"  already present, would be updated: {len(updated)}")
         for line in updated:

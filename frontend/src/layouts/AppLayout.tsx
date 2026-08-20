@@ -10,6 +10,7 @@ import clsx from "clsx";
 import {
   BarChart3,
   Bell,
+  Building2,
   ClipboardCheck,
   Clock,
   ChevronRight,
@@ -142,6 +143,12 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         label: "Templates",
         icon: <FileStack className="h-4 w-4" />,
         anyOf: ["template.view"],
+      },
+      {
+        to: "/catalogue",
+        label: "Catalogue",
+        icon: <Building2 className="h-4 w-4" />,
+        anyOf: ["project.view_all", "settings.manage"],
       },
       {
         to: "/people",

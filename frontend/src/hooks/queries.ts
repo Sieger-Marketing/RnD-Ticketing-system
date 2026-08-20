@@ -65,7 +65,7 @@ export const keys = {
   templates: (p?: Params) => ["templates", p ?? {}] as const,
   users: (p?: Params) => ["users", p ?? {}] as const,
   skills: () => ["skills"] as const,
-  customers: () => ["customers"] as const,
+  customers: (params?: Params) => ["customers", params] as const,
   products: () => ["products"] as const,
   capacity: (p?: Params) => ["capacity", p ?? {}] as const,
   assignmentBoard: (p?: Params) => ["assignment-board", p ?? {}] as const,
@@ -360,10 +360,11 @@ export function useTemplates(params?: Params) {
   });
 }
 
-export function useCustomers() {
+export function useCustomers(params?: Params) {
   return useQuery({
-    queryKey: keys.customers(),
-    queryFn: () => get<Page<Customer>>("/api/customers", { page_size: 200 }),
+    queryKey: keys.customers(params),
+    queryFn: () =>
+      get<Page<Customer>>("/api/customers", { page_size: 200, ...params }),
     staleTime: 5 * 60_000,
   });
 }
@@ -974,5 +975,49 @@ export function useReportCatalogue() {
     queryKey: ["report-catalogue"],
     queryFn: () => get<ReportCatalogue>("/api/reports"),
     staleTime: 10 * 60_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue: customers and products
+// ---------------------------------------------------------------------------
+
+function invalidateCatalog(qc: ReturnType<typeof useQueryClient>) {
+  for (const key of ["customers", "products", "product-families", "release-standards"]) {
+    qc.invalidateQueries({ queryKey: [key] });
+  }
+}
+
+export function useCreateCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => post<Customer>("/api/customers", body),
+    onSuccess: () => invalidateCatalog(qc),
+  });
+}
+
+export function useUpdateCustomer(id: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      patch<Customer>(`/api/customers/${id}`, body),
+    onSuccess: () => invalidateCatalog(qc),
+  });
+}
+
+export function useCreateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => post<Product>("/api/products", body),
+    onSuccess: () => invalidateCatalog(qc),
+  });
+}
+
+export function useUpdateProduct(id: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      patch<Product>(`/api/products/${id}`, body),
+    onSuccess: () => invalidateCatalog(qc),
   });
 }

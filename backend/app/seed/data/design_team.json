@@ -1,23 +1,25 @@
 {
-  "source": "Design team roster supplied by Sieger, 2026-08-19",
-  "note": "role defaults to Designer where the roster did not say. Correct the role, then re-run the import script -- it updates an existing account rather than creating a second one.",
+  "source": "Design team roster supplied by Sieger, with hierarchy, 2026-08-20",
+  "note": "reports_to is an employee code. Team leads report to the design team head; which designer reports to which lead was not supplied, so those are left unset rather than guessed.",
   "people": [
-    { "employee_code": "SIES00267", "full_name": "Mahendrakumar N" },
-    { "employee_code": "SIES00308", "full_name": "Prithiv N" },
-    { "employee_code": "SIES00329", "full_name": "Peter Paul R" },
-    { "employee_code": "SIES00367", "full_name": "Kavibharathi S" },
-    { "employee_code": "SIES00369", "full_name": "Vetrivel S" },
-    { "employee_code": "SIES00443", "full_name": "Vigneshwaran S" },
-    { "employee_code": "SIES00566", "full_name": "Vigneshwaran V" },
-    { "employee_code": "SIES00569", "full_name": "Karthikeyan P" },
-    { "employee_code": "SIES00571", "full_name": "Balamurugan R" },
-    { "employee_code": "SIES00573", "full_name": "Senthil G" },
-    { "employee_code": "SIES00574", "full_name": "Thirumalai Gokul" },
-    { "employee_code": "SIES00581", "full_name": "Balakumaran M" },
-    { "employee_code": "SIES00588", "full_name": "Chandiran R" },
-    { "employee_code": "SIES00687", "full_name": "Rajkumar A K" },
-    { "employee_code": "SIES00729", "full_name": "Sibiraj M" },
-    { "employee_code": "SIES00739", "full_name": "Vijay Babu M" },
-    { "employee_code": "SIES00760", "full_name": "Mahesh Kumar N" }
+    { "employee_code": "SIES00573", "full_name": "Senthil G", "role": "Design Manager", "designation": "Design Team Head" },
+
+    { "employee_code": "SIES00267", "full_name": "Mahendrakumar N", "role": "Team Lead", "reports_to": "SIES00573" },
+    { "employee_code": "SIES00574", "full_name": "Thirumalai Gokul", "role": "Team Lead", "reports_to": "SIES00573" },
+    { "employee_code": "SIES00760", "full_name": "Mahesh Kumar N", "role": "Team Lead", "reports_to": "SIES00573" },
+
+    { "employee_code": "SIES00308", "full_name": "Prithiv N", "role": "Designer" },
+    { "employee_code": "SIES00329", "full_name": "Peter Paul R", "role": "Designer" },
+    { "employee_code": "SIES00367", "full_name": "Kavibharathi S", "role": "Designer" },
+    { "employee_code": "SIES00369", "full_name": "Vetrivel S", "role": "Designer" },
+    { "employee_code": "SIES00443", "full_name": "Vigneshwaran S", "role": "Designer" },
+    { "employee_code": "SIES00566", "full_name": "Vigneshwaran V", "role": "Designer" },
+    { "employee_code": "SIES00569", "full_name": "Karthikeyan P", "role": "Designer" },
+    { "employee_code": "SIES00571", "full_name": "Balamurugan R", "role": "Designer" },
+    { "employee_code": "SIES00581", "full_name": "Balakumaran M", "role": "Designer" },
+    { "employee_code": "SIES00588", "full_name": "Chandiran R", "role": "Designer" },
+    { "employee_code": "SIES00687", "full_name": "Rajkumar A K", "role": "Designer" },
+    { "employee_code": "SIES00729", "full_name": "Sibiraj M", "role": "Designer" },
+    { "employee_code": "SIES00739", "full_name": "Vijay Babu M", "role": "Designer" }
   ]
 }

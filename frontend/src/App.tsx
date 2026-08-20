@@ -12,6 +12,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { LoadingBlock } from "@/components/ui/primitives";
 import AppLayout from "@/layouts/AppLayout";
+import Catalog from "@/routes/Catalog";
 import DesignerDashboard from "@/routes/DesignerDashboard";
 import ExecutiveDashboard from "@/routes/ExecutiveDashboard";
 import Login from "@/routes/Login";
@@ -151,6 +152,15 @@ export default function App() {
           element={
             <RequirePermission anyOf={["report.export"]}>
               <Reports />
+            </RequirePermission>
+          }
+        />
+
+        <Route
+          path="/catalogue"
+          element={
+            <RequirePermission anyOf={["project.view_all", "settings.manage"]}>
+              <Catalog />
             </RequirePermission>
           }
         />
