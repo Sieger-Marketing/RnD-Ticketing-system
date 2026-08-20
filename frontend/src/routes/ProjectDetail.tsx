@@ -364,6 +364,11 @@ export default function ProjectDetail() {
             <dl className="grid grid-cols-2 gap-4">
               <Stat label="Customer" value={p.customer_name ?? DASH} />
               <Stat label="Product" value={p.product_name ?? DASH} />
+              <Stat
+                label="Car spaces"
+                value={p.car_count ? p.car_count.toLocaleString() : DASH}
+              />
+              <Stat label="GFC date" value={shortDate(p.gfc_date)} />
               <Stat label="Type" value={p.project_type ?? DASH} />
               <Stat label="Design manager" value={p.design_manager_name ?? DASH} />
               <Stat label="Sales order" value={p.sales_order ?? DASH} />

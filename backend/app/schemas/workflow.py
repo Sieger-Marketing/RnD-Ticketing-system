@@ -90,6 +90,11 @@ class ProjectSummary(ORMModel):
     design_manager_name: str | None = None
     release_count: int = 0
     task_count: int = 0
+    #: Car spaces the system provides, and the date the drawings are good for
+    #: construction. Both come off the design team's own tracker and are the
+    #: first things anyone asks about a parking project.
+    car_count: int | None = None
+    gfc_date: date | None = None
 
     @classmethod
     def from_model(cls, p, release_count: int = 0, task_count: int = 0) -> "ProjectSummary":
@@ -116,6 +121,8 @@ class ProjectSummary(ORMModel):
             design_manager_name=p.design_manager.full_name if p.design_manager else None,
             release_count=release_count,
             task_count=task_count,
+            car_count=p.car_count,
+            gfc_date=p.gfc_date,
         )
 
 
@@ -198,6 +205,8 @@ class ReleaseSummary(ORMModel):
     team_lead_id: uuid.UUID | None = None
     team_lead_name: str | None = None
     task_count: int = 0
+    #: How many of this system the project takes.
+    unit_count: int | None = None
 
     @classmethod
     def from_model(cls, r, task_count: int = 0) -> "ReleaseSummary":
@@ -225,6 +234,7 @@ class ReleaseSummary(ORMModel):
             team_lead_id=r.team_lead_id,
             team_lead_name=r.team_lead.full_name if r.team_lead else None,
             task_count=task_count,
+            unit_count=r.unit_count,
         )
 
 

@@ -70,7 +70,12 @@ PHASES = [
 #: the release names -- otherwise a project ends up with four things called
 #: "Structures" and no way to tell them apart. Headings never carry a DSQ
 #: number, which is what makes them safe to recognise.
-SYSTEM_HEADING = re.compile(r"\d+\s*[GPC].*(PUZZLE|STACKER|UNIT|CART)", re.I)
+SYSTEM_HEADING = re.compile(
+    r"\d+\s*[GPC]\b.*\b(PUZZLE|STACKER|UNIT|CART)", re.IGNORECASE
+)
+
+#: How many of that system the project takes: "- 11 UNITS", "- 01 UNIT".
+SYSTEM_UNITS = re.compile(r"(\d+)\s*UNITS?\b", re.IGNORECASE)
 
 #: A Sieger sales order: AA1979, AN0288.
 SO_CODE = re.compile(r"^(A[AN]\d{3,5})\b")
@@ -128,6 +133,8 @@ class Item:
     dispatch: date | None
     #: The system this belongs to, where the project holds more than one.
     system: str = ""
+    #: How many of that system the project takes.
+    units: int | None = None
     phases: list[tuple[str, date | None, float | None, date | None]] = field(
         default_factory=list
     )
@@ -203,10 +210,12 @@ def parse(path: Path) -> list[Block]:
     blocks: list[Block] = []
     current: Block | None = None
     system = ""
+    units: int | None = None
 
     def start(product: str, cars, gfc) -> Block:
-        nonlocal system
+        nonlocal system, units
         system = ""
+        units = None
         block = Block(
             product=product,
             cars=int(cars) if str(cars).strip().isdigit() else None,
@@ -264,6 +273,8 @@ def parse(path: Path) -> list[Block]:
         # to; it is not itself something anyone designs.
         if not has_sequence and SYSTEM_HEADING.search(description):
             system = description
+            found = SYSTEM_UNITS.search(description)
+            units = int(found.group(1)) if found else None
             continue
 
         current.items.append(
@@ -272,6 +283,7 @@ def parse(path: Path) -> list[Block]:
                 sequence=int(sequence) if has_sequence else None,
                 dispatch=_as_date(row[COL_DISPATCH]),
                 system=system,
+                units=units,
                 phases=[
                     (
                         label,
@@ -403,6 +415,7 @@ def main() -> int:
                     priority="Medium",
                     status=ReleaseStatus.PLANNING.value,
                     planned_end=item.dispatch,
+                    unit_count=item.units,
                     created_by_id=creator.id if creator else None,
                 )
                 db.add(release)

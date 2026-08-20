@@ -226,6 +226,17 @@ export default function Projects() {
                 ),
               },
               {
+                key: "cars",
+                header: "Cars",
+                mobile: "field",
+                align: "right",
+                cell: (p) => (
+                  <span className="tabular-nums text-xs text-ink-700">
+                    {p.car_count ?? DASH}
+                  </span>
+                ),
+              },
+              {
                 key: "status",
                 header: "Status",
                 mobile: "field",

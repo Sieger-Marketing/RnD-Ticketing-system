@@ -124,6 +124,11 @@ export default function ReleaseDetail() {
         subtitle={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-mono">{r.code}</span>
+            {r.unit_count ? (
+              <span title="How many of this system the project takes">
+                {r.unit_count} unit{r.unit_count === 1 ? "" : "s"}
+              </span>
+            ) : null}
             <span>{r.release_type}</span>
             <PriorityLabel priority={r.priority} />
             <span>

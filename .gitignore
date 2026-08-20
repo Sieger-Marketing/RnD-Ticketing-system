@@ -38,3 +38,9 @@ Thumbs.db
 
 # Generated credentials. Handed out once and deleted; never committed.
 initial-passwords*.csv
+
+# Service logs and database dumps produced on the machine that hosts this.
+# The dumps are the department's entire dataset; they must never be committed.
+logs/
+backups/
+*.dump

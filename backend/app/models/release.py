@@ -82,6 +82,12 @@ class DesignRelease(Base, BusinessEntity):
     actual_start: Mapped[date | None] = mapped_column(Date)
     actual_end: Mapped[date | None] = mapped_column(Date)
 
+    #: How many of this system the project takes. A Puzzle project often buys
+    #: several identical systems -- "11 UNITS" of one configuration -- and the
+    #: same release is designed once and built that many times, so the number
+    #: belongs to the release rather than to the project.
+    unit_count: Mapped[int | None] = mapped_column(Integer)
+
     estimated_hours: Mapped[float] = mapped_column(
         Numeric(10, 2), default=0, nullable=False
     )

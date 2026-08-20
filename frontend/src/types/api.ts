@@ -247,6 +247,10 @@ export interface ProjectSummary {
   design_manager_name: string | null;
   release_count: number;
   task_count: number;
+  /** Car spaces the system provides. */
+  car_count: number | null;
+  /** Good-for-construction date. */
+  gfc_date: ISODate | null;
 }
 
 export interface ProjectDetail extends ProjectSummary {
@@ -292,6 +296,8 @@ export interface ReleaseSummary {
   team_lead_id: UUID | null;
   team_lead_name: string | null;
   task_count: number;
+  /** How many of this system the project takes. */
+  unit_count: number | null;
 }
 
 export interface ReleaseDetail extends ReleaseSummary {
