@@ -32,7 +32,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import func, or_, select, text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -62,6 +62,11 @@ TEST_PROJECT_PATTERNS = [
     "Standard Test - %",
 ]
 
+#: Throwaway names a person types while trying the system out. Matched exactly,
+#: case-insensitively, and never as a prefix: "TEST" goes, "Test rig for Tower"
+#: stays, because the second one is somebody's actual project.
+THROWAWAY_NAMES = ["test", "testing", "demo", "sample", "dummy", "asdf", "abc"]
+
 COUNTED = [
     "projects",
     "design_releases",
@@ -83,6 +88,11 @@ def main() -> int:
     parser.add_argument(
         "--apply", action="store_true", help="delete; without it nothing is written"
     )
+    parser.add_argument(
+        "--codes",
+        default="",
+        help="also remove these project codes, comma separated, e.g. PRJ-0012,PRJ-0013",
+    )
     args = parser.parse_args()
 
     with SessionLocal() as db:
@@ -96,8 +106,12 @@ def main() -> int:
         # A demo project is one belonging to a demo customer. A test project is
         # one named by a fixture. Nothing else qualifies.
         conditions = [Project.name.like(pattern) for pattern in TEST_PROJECT_PATTERNS]
+        conditions.append(func.lower(func.trim(Project.name)).in_(THROWAWAY_NAMES))
         if demo_customer_ids:
             conditions.append(Project.customer_id.in_(demo_customer_ids))
+        if args.codes:
+            wanted = [c.strip().upper() for c in args.codes.split(",") if c.strip()]
+            conditions.append(Project.code.in_(wanted))
 
         doomed_projects = db.execute(
             select(Project).where(or_(*conditions)).order_by(Project.code)
