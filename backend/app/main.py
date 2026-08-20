@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -73,3 +76,47 @@ def health_db() -> dict:
         # it goes to the server log, where the operator can read it.
         logger.exception("Database readiness probe failed")
         return {"status": "degraded", "database": "unreachable"}
+
+
+# ---------------------------------------------------------------------------
+# Serving the app itself
+# ---------------------------------------------------------------------------
+#
+# When a built frontend is sitting next to this backend, serve it from here.
+# The database lives on this machine, so the API lives on this machine, and
+# once that is true there is little reason for the app to be somewhere else:
+# one process, one origin, no CORS, and nothing else to keep running.
+#
+# Mounted last, on purpose. Every API route is already registered, so a request
+# for /api/... never reaches the catch-all -- and anything the catch-all does
+# receive is a client-side route, which means index.html rather than a 404.
+
+_DIST = Path(settings.FRONTEND_DIST_PATH)
+if not _DIST.is_absolute():
+    _DIST = (Path(__file__).resolve().parents[2] / settings.FRONTEND_DIST_PATH).resolve()
+
+if _DIST.is_dir() and (_DIST / "index.html").is_file():
+    app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str) -> FileResponse:
+        """Hand any non-API path to the app and let it route.
+
+        A deep link like /projects/<id> means something to the browser and
+        nothing to the server; answering 404 would break every bookmark and
+        every refresh.
+        """
+        candidate = (_DIST / full_path).resolve()
+        # Only a real file, and only from inside the build directory: "../" in
+        # a URL must not reach the rest of the disk.
+        if full_path and candidate.is_file() and _DIST in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(_DIST / "index.html")
+
+    logger.info("Serving the built frontend from %s", _DIST)
+else:
+    logger.info(
+        "No built frontend at %s; serving the API only. Run 'npm run build' in "
+        "frontend/ to have this process serve the app as well.",
+        _DIST,
+    )

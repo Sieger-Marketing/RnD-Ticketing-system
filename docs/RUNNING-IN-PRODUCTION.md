@@ -10,36 +10,36 @@ else follows from that.
         |
         |  HTTPS
         v
-  Vercel  ................  the built React app, static files only
-        |
-        |  HTTPS, one call per user action, carries a bearer token
-        v
-  Tailscale Funnel  .......  public HTTPS name, no open ports on the machine
-        |
+  Tailscale Funnel  .......  https://<machine>.<tailnet>.ts.net
+        |                     a real certificate, no open ports
         |  localhost
         v
-  FastAPI (uvicorn)  ......  on the machine that holds the database
+  FastAPI (uvicorn)  ......  serves the API *and* the built app
         |
         |  localhost:5432, never leaves the machine
         v
   PostgreSQL  .............  the department's data
 ```
 
-The API sits next to the database rather than in the cloud, and that is the
-whole point of the layout. One page in this app runs several SQL queries; with
-the API in a datacentre and the database on an office machine, each of those
-queries would cross the internet separately and the app would feel broken. Here
-only the API call crosses, once.
+One process. The database is on this machine, so the API is on this machine,
+and once that is true there is little reason for the app to be somewhere else:
+serving it from the same process means one origin, no CORS, no second
+deployment to keep in step, and one build that works both on the office network
+and through the tunnel.
 
-It also means no database port is exposed. Postgres listens on localhost, the
-Funnel publishes only the API, and the API requires a login.
+Nothing is hosted elsewhere. No database port is exposed -- Postgres listens on
+localhost, the Funnel publishes only port 8000, and the app requires a login.
 
 ## What breaks, and when
 
 **The site is down whenever that machine is asleep, shut down, or off the
-network.** Vercel keeps serving the page, so people see the app load and then
-fail to sign in. There is no way around this while the data lives on a machine
+network.** The Funnel has nothing to proxy to, so visitors get an error rather
+than the app. There is no way around this while the data lives on a machine
 that sleeps; the fix is to run it on something that stays on.
+
+The same is true if the API process stops but the machine keeps running, which
+is why it belongs in Task Scheduler rather than in a terminal window somebody
+might close.
 
 ## One-time setup on the machine that holds the database
 
@@ -64,17 +64,31 @@ The fixtures migrate and seed that database themselves on first run.
 
 ### 2. Clear out test debris
 
-A database that was used for development carries projects the test suite
-invented. Check what would go, then remove it:
+A database used for development carries the demo department the seed invents
+and the projects the suite leaves behind. Check what would go, then remove it:
 
 ```
-.venv\Scripts\python scripts\clean_test_data.py
-.venv\Scripts\python scripts\clean_test_data.py --apply
+.venv\Scripts\python scriptseset_to_live_data.py
+.venv\Scripts\python scriptseset_to_live_data.py --apply
 ```
+
+An administrator can do the same thing through the app -- `POST
+/api/admin/purge-demo-data`, which reads only until given `?apply=true` -- for
+a deployment where no shell is available.
 
 Back up first: `pg_dump -U designops -h 127.0.0.1 -d designops -F c -f backup.dump`
 
-### 3. Publish the API
+### 3. Build the app
+
+The API serves it, so it has to exist:
+
+```
+cd frontend
+npm install
+npm run build
+```
+
+### 4. Publish it
 
 Tailscale is the least exposed way to do this: the machine dials out, so no
 router change and no inbound firewall rule, and the name it gets is stable.
@@ -98,7 +112,11 @@ tailscale funnel status
 That publishes `http://127.0.0.1:8000` at `https://<machine>.<tailnet>.ts.net`
 with a real certificate. Nothing else on the machine becomes reachable.
 
-### 4. Keep it running
+For this department that address is:
+
+    https://u1-l-2rkv8f4.tailc2b13d.ts.net
+
+### 5. Keep it running
 
 `scripts/serve.ps1` runs the API in the foreground. For daily use it should
 start with the machine — a Task Scheduler entry set to "run whether user is
@@ -132,21 +150,19 @@ In `backend/.env`:
 | `DATABASE_URL` | must be set explicitly, even pointing at this machine |
 | `SECRET_KEY`, `JWT_SECRET` | anything starting `dev-only` is refused |
 | `SEED_DEFAULT_PASSWORD` | the published default is refused |
-| `FRONTEND_URL` | the site's origin, or the browser blocks every call with a CORS error |
-| `EXTRA_CORS_ORIGINS` | further allowed origins, comma separated |
-| `CORS_ORIGIN_REGEX` | preview deployments, which get a generated subdomain per build |
+| `FRONTEND_DIST_PATH` | where the built app is; when it exists this process serves it |
+| `FRONTEND_URL`, `EXTRA_CORS_ORIGINS`, `CORS_ORIGIN_REGEX` | only matter if the app is hosted separately; with one process there is no cross-origin call to allow |
 
 A CORS mistake is worth recognising on sight: the API answers `curl` perfectly
 and fails in the browser with nothing useful in the network tab. It means the
 site's origin is not in the allowed list — including when it differs only by a
 trailing slash.
 
-## On Vercel
+## Hosting the app separately (not needed any more)
 
-Set the project's **Root Directory** to `frontend`.
-
-`VITE_API_BASE_URL` must point at the API's public name. It is baked into the
-bundle at build time, so changing it needs a redeploy, not a restart. The repo
-carries it in `frontend/.env.production`; **a value set in the Vercel dashboard
-overrides that file**, so if the dashboard still holds an older API address,
-that is what ships.
+The app used to be deployed to Vercel, with the API somewhere else. That is no
+longer the arrangement and nothing depends on it. If it is ever revived,
+`VITE_API_BASE_URL` in `frontend/.env.production` must be set to the API's
+absolute address -- it is deliberately empty now, which is what makes the
+single-process setup work -- and Vite bakes it in at build time, so changing it
+needs a rebuild rather than a restart.

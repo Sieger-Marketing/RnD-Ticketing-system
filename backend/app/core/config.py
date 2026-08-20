@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     BACKEND_URL: str = "http://localhost:8000"
 
+    #: Where the built frontend is, relative to the repository root. When it
+    #: exists, the API process serves the app too -- which is what you want when
+    #: the database is on this machine and there is no reason for the app to be
+    #: anywhere else.
+    FRONTEND_DIST_PATH: str = "frontend/dist"
+
     #: Additional browser origins allowed to call the API, comma separated.
     #: The deployed frontend lives on a different origin from this API, and a
     #: hosting provider may serve it from more than one (a production domain

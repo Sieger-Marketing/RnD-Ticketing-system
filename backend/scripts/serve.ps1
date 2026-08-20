@@ -32,10 +32,22 @@ if (-not (Test-Path $python)) {
 & $python -m alembic upgrade head
 if ($LASTEXITCODE -ne 0) { Write-Error 'Migrations failed; not starting.' }
 
+# The API serves the built app, so a missing build means an API-only server
+# and a confusing 404 at the root.
+$dist = Join-Path (Split-Path (Get-Location) -Parent) 'frontend\dist\index.html'
+if (-not (Test-Path $dist)) {
+    Write-Host 'No built frontend found; building it now.' -ForegroundColor Yellow
+    Push-Location (Join-Path (Split-Path (Get-Location) -Parent) 'frontend')
+    npm install
+    npm run build
+    Pop-Location
+}
+
 $listen = if ($Lan) { '0.0.0.0' } else { '127.0.0.1' }
 if ($Lan) {
     Write-Host 'Listening on the local network as well as localhost.' -ForegroundColor Yellow
 }
 
-Write-Host "API on http://${listen}:${Port}  (health: /health, readiness: /health/db)"
+Write-Host "Serving on http://${listen}:${Port}  (health: /health, readiness: /health/db)"
+Write-Host "Published at https://u1-l-2rkv8f4.tailc2b13d.ts.net while the Tailscale Funnel is on."
 & $python -m uvicorn app.main:app --host $listen --port $Port
