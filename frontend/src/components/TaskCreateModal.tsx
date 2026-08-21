@@ -18,7 +18,13 @@ import { AssigneePicker } from "@/components/AssigneePicker";
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import { InlineAlert, Spinner } from "@/components/ui/primitives";
-import { useCreateTask, useSkills, useVocabularies } from "@/hooks/queries";
+import {
+  useCreateTask,
+  useProjects,
+  useReleases,
+  useSkills,
+  useVocabularies,
+} from "@/hooks/queries";
 import { PRIORITIES, toOptions } from "@/lib/vocab";
 import type { TaskDetail, UUID } from "@/types/api";
 
@@ -28,14 +34,30 @@ export function TaskCreateModal({
   onClose,
   onCreated,
 }: {
-  releaseId: UUID;
-  releaseName: string;
+  /** Omit to let the person choose, which is what the Tasks screen does. */
+  releaseId?: UUID;
+  releaseName?: string;
   onClose: () => void;
   onCreated: (task: TaskDetail) => void;
 }) {
   const create = useCreateTask();
   const skills = useSkills();
   const vocab = useVocabularies();
+
+  // Only used when no release was handed in.
+  const [projectId, setProjectId] = useState("");
+  const projects = useProjects({ page_size: 200 });
+  const releases = useReleases({ project_id: projectId, page_size: 200 });
+  const [pickedRelease, setPickedRelease] = useState("");
+
+  const chosenId = releaseId ?? pickedRelease;
+  const chosen = (releases.data?.items ?? []).find((r) => r.id === chosenId);
+
+  // A task lives inside its release's window, and the server refuses a start
+  // before it. Showing the window and bounding the inputs means finding that
+  // out while choosing the date rather than after pressing Add.
+  const windowStart = chosen?.planned_start ?? undefined;
+  const windowEnd = chosen?.planned_end ?? undefined;
 
   const [name, setName] = useState("");
   const [taskType, setTaskType] = useState("");
@@ -56,14 +78,18 @@ export function TaskCreateModal({
 
   const datesBackwards =
     Boolean(plannedStart) && Boolean(plannedEnd) && plannedEnd < plannedStart;
-  const ready = name.trim().length > 0 && taskType.trim().length > 0 && !datesBackwards;
+  const ready =
+    Boolean(chosenId) &&
+    name.trim().length > 0 &&
+    taskType.trim().length > 0 &&
+    !datesBackwards;
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!ready) return;
     create.mutate(
       {
-        release_id: releaseId,
+        release_id: chosenId,
         name: name.trim(),
         task_type: taskType.trim(),
         description: description.trim() || null,
@@ -87,7 +113,11 @@ export function TaskCreateModal({
       onClose={onClose}
       size="lg"
       title="Add a task"
-      description={`It will be added to ${releaseName}, after the tasks already there.`}
+      description={
+        releaseName
+          ? `It will be added to ${releaseName}, after the tasks already there.`
+          : "Choose where it belongs, then describe the work."
+      }
       footer={
         <>
           <button type="button" className="btn-secondary" onClick={onClose}>
@@ -107,6 +137,53 @@ export function TaskCreateModal({
     >
       <form id="task-form" onSubmit={submit} className="space-y-3">
         <FormError error={create.error} />
+
+        {!releaseId && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Project">
+              <Select
+                value={projectId}
+                onChange={(event) => {
+                  setProjectId(event.target.value);
+                  setPickedRelease("");
+                }}
+                placeholder="Choose a project"
+                options={(projects.data?.items ?? []).map((p) => ({
+                  value: p.id,
+                  label: `${p.code} ${p.name}`,
+                }))}
+              />
+            </Field>
+
+            <Field
+              label="Design release"
+              hint={
+                projectId && (releases.data?.items ?? []).length === 0
+                  ? "This project has no releases yet."
+                  : undefined
+              }
+            >
+              <Select
+                value={pickedRelease}
+                onChange={(event) => setPickedRelease(event.target.value)}
+                placeholder={projectId ? "Choose a release" : "Pick a project first"}
+                disabled={!projectId}
+                options={(releases.data?.items ?? []).map((r) => ({
+                  value: r.id,
+                  label: `${r.code} ${r.name}`,
+                }))}
+              />
+            </Field>
+          </div>
+        )}
+
+        {chosen && (windowStart || windowEnd) && (
+          <p className="text-xs text-ink-500">
+            {chosen.code} runs {windowStart ?? "—"} to {windowEnd ?? "—"}. A task
+            cannot start before that, and one planned past the end will move the
+            release&rsquo;s target date.
+          </p>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="What is it">
@@ -181,6 +258,7 @@ export function TaskCreateModal({
             <TextInput
               type="date"
               value={plannedStart}
+              min={windowStart}
               onChange={(event) => setPlannedStart(event.target.value)}
             />
           </Field>
@@ -191,7 +269,7 @@ export function TaskCreateModal({
             <TextInput
               type="date"
               value={plannedEnd}
-              min={plannedStart || undefined}
+              min={plannedStart || windowStart}
               onChange={(event) => setPlannedEnd(event.target.value)}
             />
           </Field>

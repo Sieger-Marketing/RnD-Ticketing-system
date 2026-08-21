@@ -2,9 +2,11 @@
  * Task list (spec section 10).
  */
 
-import { LayoutGrid, List } from "lucide-react";
+import { LayoutGrid, List, Plus } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
+import { TaskCreateModal } from "@/components/TaskCreateModal";
 import { TaskTable } from "@/components/TaskTable";
 import { ChipFilter, FilterBar, Pagination, SearchInput } from "@/components/ui/Filters";
 import {
@@ -13,10 +15,13 @@ import {
   SkeletonRows,
 } from "@/components/ui/primitives";
 import { useTasks } from "@/hooks/queries";
+import { P, useAuth } from "@/store/auth";
 import { PRIORITIES, TASK_STATUSES } from "@/lib/vocab";
 
 export default function Tasks() {
   const navigate = useNavigate();
+  const can = useAuth((state) => state.can);
+  const [adding, setAdding] = useState(false);
   const [params, setParams] = useSearchParams();
 
   const page = Number(params.get("page") ?? 1);
@@ -65,6 +70,17 @@ export default function Tasks() {
           data ? `${data.total.toLocaleString()} task${data.total === 1 ? "" : "s"}` : undefined
         }
         actions={
+          <>
+            {can(P.taskCreate) && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setAdding(true)}
+              >
+                <Plus className="h-4 w-4" />
+                New task
+              </button>
+            )}
           <div className="flex items-center gap-1 rounded-md border border-ink-300 p-0.5">
             <span className="btn px-2 py-1 bg-ink-900 text-white">
               <List className="h-3.5 w-3.5" />
@@ -74,7 +90,8 @@ export default function Tasks() {
               <LayoutGrid className="h-3.5 w-3.5" />
               Board
             </Link>
-          </div>
+            </div>
+          </>
         }
       />
 
@@ -160,6 +177,16 @@ export default function Tasks() {
           </>
         )}
       </div>
+
+      {adding && (
+        <TaskCreateModal
+          onClose={() => setAdding(false)}
+          onCreated={(task) => {
+            setAdding(false);
+            navigate(`/tasks/${task.id}`);
+          }}
+        />
+      )}
     </>
   );
 }
