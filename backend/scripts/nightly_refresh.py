@@ -12,11 +12,20 @@ Run once a night, before anyone opens a dashboard. Idempotent.
 
 from __future__ import annotations
 
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+BACKEND = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND))
+
+# The database URL is read from a .env resolved against the working directory,
+# so a scheduled run that starts anywhere else finds no configuration and dies
+# on a connection error that says nothing about the real cause. The task sets
+# its working directory, but a script that only works from one place is a
+# script that breaks the first time somebody runs it by hand.
+os.chdir(BACKEND)
 
 from app.db.session import SessionLocal  # noqa: E402
 from app.services import health_service  # noqa: E402
