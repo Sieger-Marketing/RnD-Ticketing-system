@@ -137,6 +137,18 @@ class Task(Base, BusinessEntity):
     blocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     delay_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     delay_reason: Mapped[str | None] = mapped_column(String(80), index=True)
+
+    #: Why the work was deliberately paused. Distinct from blocker_reason: a
+    #: blocked task is waiting on something specific, a held task has been
+    #: parked by a decision. Conflating them loses which of the two it was.
+    hold_reason: Mapped[str | None] = mapped_column(String(80), index=True)
+    hold_note: Mapped[str | None] = mapped_column(Text)
+
+    #: Why the work took materially more or less time than estimated. Captured
+    #: at completion, when the person still remembers -- asking a week later
+    #: produces "not sure" and an estimate nobody learns anything from.
+    variance_reason: Mapped[str | None] = mapped_column(String(80), index=True)
+    variance_note: Mapped[str | None] = mapped_column(Text)
     delay_note: Mapped[str | None] = mapped_column(Text)
 
     # Lifecycle stamps. Cycle time = completed_at - started_at, queue time =

@@ -119,6 +119,11 @@ class DesignRelease(Base, BusinessEntity):
     delay_reason: Mapped[str | None] = mapped_column(String(80))
     delay_note: Mapped[str | None] = mapped_column(Text)
 
+    #: Why the release was paused, and by whom, so a hold is answerable rather
+    #: than something that quietly happened.
+    hold_reason: Mapped[str | None] = mapped_column(String(80))
+    hold_note: Mapped[str | None] = mapped_column(Text)
+
     # Set when a manager force-completes a release that still has open
     # mandatory tasks (spec section 42). Presence of a value is the audit flag.
     completion_override_by_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -156,6 +156,10 @@ def _detail(db: Session, task: Task) -> TaskDetail:
         submission_count=task.submission_count or 0,
         delay_reason=task.delay_reason,
         delay_note=task.delay_note,
+        hold_reason=task.hold_reason,
+        hold_note=task.hold_note,
+        variance_reason=task.variance_reason,
+        variance_note=task.variance_note,
         assigned_at=task.assigned_at,
         started_at=task.started_at,
         submitted_at=task.submitted_at,
@@ -520,6 +524,9 @@ def change_status(
         actor=user,
         note=payload.note,
         delay_reason=payload.delay_reason,
+        hold_reason=payload.hold_reason,
+        variance_reason=payload.variance_reason,
+        variance_note=payload.variance_note,
         context=client_context(request),
     )
     rollup_service.refresh_chain(db, task)

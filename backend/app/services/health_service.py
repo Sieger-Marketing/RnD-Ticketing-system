@@ -325,6 +325,33 @@ def evaluate_release_health(
                 )
             )
 
+    # A plan that cannot work, said on the day it is made rather than on the
+    # day it fails. Task dates are laid out from the release's start when they
+    # are generated and nothing has ever checked they fit inside it, so a
+    # release due in a week could carry three weeks of work and look no
+    # different from a sound one until the dates began passing one by one.
+    if release.planned_end and release.id is not None:
+        overrunning = db.execute(
+            select(func.count())
+            .select_from(Task)
+            .where(
+                Task.release_id == release.id,
+                Task.planned_end.is_not(None),
+                Task.planned_end > release.planned_end,
+                Task.status.in_(_OPEN_TASK_VALUES),
+            )
+        ).scalar() or 0
+        if overrunning:
+            findings.append(
+                Finding(
+                    "AMBER",
+                    "tasks_past_release_date",
+                    f"{overrunning} task(s) are planned to finish after this "
+                    "release is due",
+                    overrunning,
+                )
+            )
+
     # A near deadline with substantial work left is a warning in its own right,
     # before anything has technically slipped.
     if release.planned_end and release.status not in {
@@ -431,6 +458,30 @@ def evaluate_project_health(
                     f"Release {release.code} ({release.name}) is "
                     f"{release_delay} day(s) behind schedule",
                     release_delay,
+                )
+            )
+
+    # The same question one level up: a release planned to land after the
+    # customer's required date is a plan that does not close, however healthy
+    # each release looks on its own.
+    if project.required_completion_date:
+        late_by_plan = db.execute(
+            select(DesignRelease).where(
+                DesignRelease.project_id == project.id,
+                DesignRelease.planned_end.is_not(None),
+                DesignRelease.planned_end > project.required_completion_date,
+                DesignRelease.status.in_(_OPEN_RELEASE_VALUES),
+            )
+        ).scalars().all()
+        for release in late_by_plan:
+            over = (release.planned_end - project.required_completion_date).days
+            findings.append(
+                Finding(
+                    "AMBER",
+                    "release_planned_past_project_date",
+                    f"Release {release.code} ({release.name}) is planned to "
+                    f"finish {over} day(s) after the project is required",
+                    over,
                 )
             )
 

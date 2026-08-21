@@ -41,6 +41,13 @@ def vocabularies(
     discovering the rule through a rejected submit.
     """
     return {
+        "hold_reasons": settings_service.get_setting(db, "workflow.hold_reasons"),
+        "variance_reasons": settings_service.get_setting(
+            db, "workflow.variance_reasons"
+        ),
+        "variance_threshold_percent": settings_service.get_setting(
+            db, "workflow.variance_threshold_percent", 25
+        ),
         "delay_reasons": settings_service.get_setting(db, "workflow.delay_reasons"),
         "revision_categories": settings_service.get_setting(
             db, "workflow.revision_categories"

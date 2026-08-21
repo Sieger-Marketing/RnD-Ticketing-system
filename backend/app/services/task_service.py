@@ -34,17 +34,20 @@ from app.services.notification_service import Event
 #: transition is a 409 with a clear message rather than a corrupted row.
 ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     TaskStatus.NOT_STARTED.value: {
+        TaskStatus.ON_HOLD.value,
         TaskStatus.ASSIGNED.value,
         TaskStatus.IN_PROGRESS.value,
         TaskStatus.CANCELLED.value,
     },
     TaskStatus.ASSIGNED.value: {
+        TaskStatus.ON_HOLD.value,
         TaskStatus.IN_PROGRESS.value,
         TaskStatus.BLOCKED.value,
         TaskStatus.NOT_STARTED.value,
         TaskStatus.CANCELLED.value,
     },
     TaskStatus.IN_PROGRESS.value: {
+        TaskStatus.ON_HOLD.value,
         TaskStatus.BLOCKED.value,
         TaskStatus.SUBMITTED_FOR_REVIEW.value,
         TaskStatus.COMPLETED.value,
@@ -52,6 +55,7 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
         TaskStatus.CANCELLED.value,
     },
     TaskStatus.BLOCKED.value: {
+        TaskStatus.ON_HOLD.value,
         TaskStatus.IN_PROGRESS.value,
         TaskStatus.ASSIGNED.value,
         TaskStatus.CANCELLED.value,
@@ -75,6 +79,15 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
         TaskStatus.REVISION_REQUIRED.value,
     },
     TaskStatus.COMPLETED.value: {TaskStatus.REVISION_REQUIRED.value},
+    # Work that was parked comes back to where it was, or is abandoned. It
+    # cannot jump straight to review: whatever was paused still has to be
+    # finished first.
+    TaskStatus.ON_HOLD.value: {
+        TaskStatus.IN_PROGRESS.value,
+        TaskStatus.ASSIGNED.value,
+        TaskStatus.NOT_STARTED.value,
+        TaskStatus.CANCELLED.value,
+    },
     TaskStatus.CANCELLED.value: set(),
 }
 
@@ -343,6 +356,9 @@ def transition(
     actor: User | None,
     note: str | None = None,
     delay_reason: str | None = None,
+    hold_reason: str | None = None,
+    variance_reason: str | None = None,
+    variance_note: str | None = None,
     context: dict | None = None,
     today: date | None = None,
 ) -> Task:
@@ -367,6 +383,23 @@ def transition(
         )
 
     now = datetime.now(UTC)
+
+    # A hold has to be answerable. Work that stops for a reason nobody recorded
+    # is indistinguishable a month later from work that was simply forgotten,
+    # and it is the held tasks that quietly consume a schedule.
+    if target == TaskStatus.ON_HOLD.value:
+        if not (hold_reason or task.hold_reason):
+            raise ValidationError(
+                f"{task.code} cannot be put on hold without a reason.",
+                details={
+                    "allowed_reasons": settings_service.get_setting(
+                        db, "workflow.hold_reasons"
+                    )
+                },
+            )
+        task.hold_reason = hold_reason or task.hold_reason
+        if note:
+            task.hold_note = note
 
     if target == TaskStatus.IN_PROGRESS.value:
         blockers = blocking_prerequisites(db, task)
@@ -445,6 +478,46 @@ def transition(
         # Reopened work is not 100% done any more; leaving it at 100 would let
         # a reworked release report itself complete.
         task.completion_percent = min(float(task.completion_percent or 0), 90)
+
+    # Time taken against time estimated, captured while the person still
+    # remembers. This is separate from a delay reason: a task can finish on
+    # the planned date and still take twice the hours, and that gap is what
+    # the next estimate should learn from.
+    if target in {TaskStatus.SUBMITTED_FOR_REVIEW.value, TaskStatus.COMPLETED.value}:
+        estimated = float(task.estimated_hours or 0)
+        actual = float(task.actual_hours or 0)
+        threshold = float(
+            settings_service.get_setting(db, "workflow.variance_threshold_percent", 25)
+        )
+        # Only meaningful once both numbers exist. A task with no estimate has
+        # nothing to vary from, and one with no logged time has not been done.
+        material = (
+            estimated > 0
+            and actual > 0
+            and abs(actual - estimated) / estimated * 100 >= threshold
+        )
+        if variance_reason:
+            task.variance_reason = variance_reason
+        if variance_note:
+            task.variance_note = variance_note
+        if (
+            material
+            and settings_service.get_setting(db, "workflow.require_variance_reason", True)
+            and not task.variance_reason
+        ):
+            drift = round((actual - estimated) / estimated * 100, 1)
+            raise ValidationError(
+                f"{task.code} took {actual:g}h against an estimate of "
+                f"{estimated:g}h ({drift:+g}%). A reason is required.",
+                details={
+                    "estimated_hours": estimated,
+                    "actual_hours": actual,
+                    "variance_percent": drift,
+                    "allowed_reasons": settings_service.get_setting(
+                        db, "workflow.variance_reasons"
+                    ),
+                },
+            )
 
     # An overdue item must say why before it moves on, when the rule is on.
     if (

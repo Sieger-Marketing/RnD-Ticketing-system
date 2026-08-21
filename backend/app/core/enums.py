@@ -74,6 +74,7 @@ class TaskStatus(StrEnum):
     REVISION_REQUIRED = "Revision Required"
     APPROVED = "Approved"
     COMPLETED = "Completed"
+    ON_HOLD = "On Hold"
     CANCELLED = "Cancelled"
 
 

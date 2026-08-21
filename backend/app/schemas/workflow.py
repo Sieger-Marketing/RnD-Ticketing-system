@@ -413,6 +413,13 @@ class TaskStatusChange(BaseModel):
     status: str
     note: str | None = None
     delay_reason: str | None = None
+    #: Required when moving to On Hold: a pause nobody explained is
+    #: indistinguishable later from work that was forgotten.
+    hold_reason: str | None = None
+    #: Required when finishing work whose hours drifted materially from the
+    #: estimate. Captured now, because asking a week later produces "not sure".
+    variance_reason: str | None = None
+    variance_note: str | None = None
 
     @field_validator("status")
     @classmethod
@@ -469,6 +476,10 @@ class TaskSummary(ORMModel):
 
 
 class TaskDetail(TaskSummary):
+    hold_reason: str | None = None
+    hold_note: str | None = None
+    variance_reason: str | None = None
+    variance_note: str | None = None
     description: str | None = None
     sequence: int
     team_lead_id: uuid.UUID | None = None

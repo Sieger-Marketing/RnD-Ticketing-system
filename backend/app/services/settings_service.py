@@ -90,6 +90,52 @@ DEFAULT_SETTINGS: dict[str, tuple[str, Any, str]] = {
         "Thresholds the health engine uses to decide GREEN / AMBER / RED.",
     ),
     # -- workflow vocabularies (spec sections 16, 20, 34) -----------------
+    "workflow.hold_reasons": (
+        "workflow",
+        [
+            "Customer Instruction",
+            "Awaiting Approval",
+            "Awaiting Drawing Input",
+            "Design Change Expected",
+            "Commercial Hold",
+            "Resource Reallocated",
+            "Site Not Ready",
+            "Other",
+        ],
+        "Why work was deliberately paused. Distinct from a blocker, which is "
+        "waiting on something specific rather than parked by a decision.",
+    ),
+    #: Why the time taken differed materially from the estimate. Separate from
+    #: a delay reason: a task can finish on time and still take twice the
+    #: hours, and that is the number the next estimate should learn from.
+    "workflow.variance_reasons": (
+        "workflow",
+        [
+            "Scope Grew",
+            "Underestimated",
+            "Rework",
+            "Waiting Time Included",
+            "Complexity Higher Than Expected",
+            "Learning Curve",
+            "Finished Faster Than Expected",
+            "Other",
+        ],
+        "Why the hours taken differed materially from the estimate. Separate "
+        "from a delay reason: work can finish on time and still cost double.",
+    ),
+    "workflow.require_variance_reason": (
+        "workflow",
+        True,
+        "Whether finishing work whose hours drifted materially from the "
+        "estimate must carry a reason.",
+    ),
+    #: How far actual may drift from estimate before a reason is required.
+    "workflow.variance_threshold_percent": (
+        "workflow",
+        25,
+        "How far actual hours may drift from the estimate, either way, before "
+        "a reason is required.",
+    ),
     "workflow.delay_reasons": (
         "workflow",
         [

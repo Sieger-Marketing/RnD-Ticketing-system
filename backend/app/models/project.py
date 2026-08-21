@@ -112,6 +112,12 @@ class Project(Base, BusinessEntity):
     # reasons to be visible, not just the colour.
     health_reasons: Mapped[list | None] = mapped_column(JSONB, default=list)
 
+    #: Why the project was paused. A held project still accrues delay against
+    #: its required date -- pausing the work does not move the customer's
+    #: deadline -- so the reason is what explains the colour.
+    hold_reason: Mapped[str | None] = mapped_column(String(80))
+    hold_note: Mapped[str | None] = mapped_column(Text)
+
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
     )
