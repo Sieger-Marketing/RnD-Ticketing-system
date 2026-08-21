@@ -39,6 +39,7 @@ from app.services import (
     code_service,
     kpi,
     release_service,
+    schedule_service,
     rollup_service,
     template_service,
 )
@@ -194,6 +195,7 @@ def create_release(
         external_id=payload.external_id,
         created_by_id=user.id,
     )
+    schedule_service.stamp_baseline(release)
     db.add(release)
     db.flush()
 
@@ -259,6 +261,8 @@ def update_release(
 
     if release.planned_start and release.planned_end and release.planned_end < release.planned_start:
         raise ValidationError("planned_end cannot be before planned_start.")
+
+    schedule_service.stamp_baseline(release)
 
     if new_lead_id != "__unset__" and new_lead_id != before["team_lead_id"]:
         if new_lead_id is None:
@@ -510,6 +514,8 @@ def _detail(db: Session, release: DesignRelease) -> ReleaseDetail:
         description=release.description,
         actual_start=release.actual_start,
         actual_end=release.actual_end,
+        baseline_planned_start=release.baseline_planned_start,
+        baseline_planned_end=release.baseline_planned_end,
         health_reasons=release.health_reasons or [],
         template_version_id=release.template_version_id,
         template_name=version.template.name if version and version.template else None,

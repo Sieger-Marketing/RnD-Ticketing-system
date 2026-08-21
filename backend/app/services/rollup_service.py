@@ -29,7 +29,7 @@ from app.models.execution import Revision, TimeEntry
 from app.models.project import Project
 from app.models.release import DesignRelease
 from app.models.task import Task
-from app.services import health_service, kpi
+from app.services import health_service, kpi, schedule_service
 
 _DONE_TASK_VALUES = {TaskStatus.COMPLETED.value, TaskStatus.APPROVED.value}
 _OPEN_TASK_VALUES = [s.value for s in OPEN_TASK_STATUSES]
@@ -77,12 +77,10 @@ def refresh_release(db: Session, release: DesignRelease, today: date | None = No
         or 0
     )
 
-    # Derived from the tasks every time rather than stamped once. A one-shot
-    # stamp goes stale the moment a task's start is corrected or an earlier
-    # task joins the release, which is how a release ended up claiming it
-    # started after it finished.
-    started = [t.started_at for t in tasks if t.started_at]
-    release.actual_start = min(started).date() if started else None
+    # Both observed from the tasks every time rather than stamped once: a
+    # release started when its first task started and finished when its last
+    # one finished, whatever day somebody pressed Complete.
+    schedule_service.refresh_actual_dates(db, release)
 
     db.flush()
     return release

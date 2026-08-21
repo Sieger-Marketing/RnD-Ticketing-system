@@ -242,6 +242,10 @@ class ReleaseDetail(ReleaseSummary):
     description: str | None = None
     actual_start: date | None = None
     actual_end: date | None = None
+    #: What was originally committed. planned_start/planned_end are the current
+    #: forecast and may have moved; these have not.
+    baseline_planned_start: date | None = None
+    baseline_planned_end: date | None = None
     health_reasons: list[dict] = []
     template_version_id: uuid.UUID | None = None
     template_name: str | None = None

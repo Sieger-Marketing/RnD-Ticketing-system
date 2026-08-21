@@ -82,6 +82,17 @@ class DesignRelease(Base, BusinessEntity):
     actual_start: Mapped[date | None] = mapped_column(Date)
     actual_end: Mapped[date | None] = mapped_column(Date)
 
+    #: What was originally committed, stamped the first time the release is
+    #: given dates and never moved again.
+    #:
+    #: planned_end is allowed to move when work runs past it, so that the plan
+    #: stays honest about when the drawings will actually land. But a target
+    #: that follows the work is not a target: judged against it, every release
+    #: ever delivered is on time. Delivery is therefore measured against this
+    #: baseline, and the gap between the two is itself worth seeing.
+    baseline_planned_start: Mapped[date | None] = mapped_column(Date)
+    baseline_planned_end: Mapped[date | None] = mapped_column(Date)
+
     #: How many of this system the project takes. A Puzzle project often buys
     #: several identical systems -- "11 UNITS" of one configuration -- and the
     #: same release is designed once and built that many times, so the number

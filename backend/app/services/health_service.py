@@ -211,7 +211,12 @@ def evaluate_release_health(
     }:
         # Open-task and blocker findings would be stale by definition here, and
         # effort overrun is reported as a number rather than a colour.
-        late_by = delivered_late_days(release.actual_end, release.planned_end)
+        # Against the baseline, not the current target. planned_end moves out
+        # when work overruns, so measuring against it would report every
+        # release ever delivered as exactly on time.
+        late_by = delivered_late_days(
+            release.actual_end, release.baseline_planned_end or release.planned_end
+        )
         if release.status == ReleaseStatus.COMPLETED.value and late_by:
             level = _band(
                 late_by,
@@ -324,6 +329,29 @@ def evaluate_release_health(
                     round(rework, 2),
                 )
             )
+
+    # A target that has moved is not the same as a target that was met. The
+    # release may be perfectly on track against today's date and still have
+    # slipped a fortnight from what was promised, and only one of those two
+    # facts survives into a status meeting unless this is said out loud.
+    if release.baseline_planned_end and release.planned_end:
+        slipped = (release.planned_end - release.baseline_planned_end).days
+        if slipped > 0:
+            level = _band(
+                slipped,
+                float(rules.get("amber_delay_days", 2)),
+                float(rules.get("red_delay_days", 5)),
+            )
+            if level:
+                findings.append(
+                    Finding(
+                        level,
+                        "target_moved_from_baseline",
+                        f"Target end has moved {slipped} day(s) from the "
+                        f"{release.baseline_planned_end.isoformat()} originally planned",
+                        slipped,
+                    )
+                )
 
     # A plan that cannot work, said on the day it is made rather than on the
     # day it fails. Task dates are laid out from the release's start when they

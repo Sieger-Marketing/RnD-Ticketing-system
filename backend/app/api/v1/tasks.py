@@ -49,6 +49,7 @@ from app.services import (
     code_service,
     kpi,
     rollup_service,
+    schedule_service,
     settings_service,
     task_service,
 )
@@ -351,6 +352,11 @@ def create_task(
     if release is None:
         raise NotFoundError("Design release not found.")
 
+    # Tasks live inside the release window: nothing may begin before the
+    # release opens, and work that runs past the end moves the end rather
+    # than being silently accepted against a date everyone knows is gone.
+    schedule_service.assert_within_window(release, payload.planned_start)
+
     sequence = payload.sequence
     if sequence is None:
         sequence = (
@@ -407,6 +413,17 @@ def create_task(
             raise NotFoundError("The specified assignee does not exist.")
         task_service.assign(
             db, task, assignee, actor=user, context=client_context(request)
+        )
+
+    moved = schedule_service.extend_for_task(
+        db, release, task.planned_end, actor=user, context=client_context(request)
+    )
+    if moved:
+        schedule_service.stamp_baseline(release)
+
+    if release is not None:
+        schedule_service.extend_for_task(
+            db, release, task.planned_end, actor=user, context=client_context(request)
         )
 
     rollup_service.refresh_chain(db, task)
