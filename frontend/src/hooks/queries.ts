@@ -16,6 +16,7 @@ import {
 
 import { del, get, patch, post, put } from "@/lib/api";
 import type {
+  AppSetting,
   Breakdown,
   CapacitySummary,
   Customer,
@@ -789,10 +790,7 @@ export function useSettings(category?: string) {
   return useQuery({
     queryKey: ["settings", category ?? "all"],
     queryFn: () =>
-      get<{ id: UUID; key: string; category: string; value: unknown; description: string | null }[]>(
-        "/api/settings",
-        { category },
-      ),
+      get<AppSetting[]>("/api/settings", { category }),
   });
 }
 

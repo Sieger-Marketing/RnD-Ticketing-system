@@ -26,6 +26,7 @@
 param(
     [string]$BackupTo,
     [string]$BackupAt = '20:00',
+    [string]$SweepAt  = '06:30',
     [switch]$Uninstall
 )
 
@@ -34,6 +35,7 @@ Set-Location (Join-Path $PSScriptRoot '..')
 
 $API_TASK    = 'DesignOps API'
 $BACKUP_TASK = 'DesignOps Database Backup'
+$SWEEP_TASK  = 'DesignOps Nightly Refresh'
 
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
     [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -166,7 +168,40 @@ Register-ScheduledTask -TaskName $BACKUP_TASK -Action $backupAction `
 Write-Host "Registered: $BACKUP_TASK (daily at $BackupAt, to $BackupTo)" -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
-# 3. Stop the machine sleeping
+# 3. The nightly re-rating
+# ---------------------------------------------------------------------------
+# Delay days and RAG colours are computed against today but stored on the row,
+# so lists can filter and sort on them. Nothing about a release changes when it
+# slips past its date overnight -- so nothing re-rates it, and it keeps showing
+# yesterday's colour. Runs before the working day rather than after it, so the
+# first person in sees today's picture.
+
+$sweepScript = Join-Path $backendDir 'scripts\nightly_refresh.py'
+$pythonExe   = Join-Path $backendDir '.venv\Scripts\python.exe'
+
+$sweepAction = New-ScheduledTaskAction `
+    -Execute $pythonExe `
+    -Argument "`"$sweepScript`"" `
+    -WorkingDirectory $backendDir
+
+$sweepSettings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -StartWhenAvailable `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
+
+if (Get-ScheduledTask -TaskName $SWEEP_TASK -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $SWEEP_TASK -Confirm:$false
+}
+Register-ScheduledTask -TaskName $SWEEP_TASK -Action $sweepAction `
+    -Trigger (New-ScheduledTaskTrigger -Daily -At $SweepAt) `
+    -Settings $sweepSettings -Principal $principal `
+    -Description "Re-rate delay days and RAG health against today's date." | Out-Null
+
+Write-Host "Registered: $SWEEP_TASK (daily at $SweepAt)" -ForegroundColor Green
+
+# ---------------------------------------------------------------------------
+# 4. Stop the machine sleeping
 # ---------------------------------------------------------------------------
 # On AC only. Left alone on battery, because a laptop on battery that refuses
 # to sleep flattens itself and is then off for longer than it would have been.

@@ -26,6 +26,7 @@ import {
   LogOut,
   Menu,
   RotateCcw,
+  Sliders,
   Square,
   Users2,
   X,
@@ -149,6 +150,12 @@ const NAV_SECTIONS: { heading: string; items: NavItem[] }[] = [
         label: "Catalogue",
         icon: <Building2 className="h-4 w-4" />,
         anyOf: ["project.view_all", "settings.manage"],
+      },
+      {
+        to: "/connections",
+        label: "Connection Map",
+        icon: <Sliders className="h-4 w-4" />,
+        anyOf: ["settings.view"],
       },
       {
         to: "/people",

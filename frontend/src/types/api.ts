@@ -726,3 +726,13 @@ export interface ReportCatalogue {
   formats: string[];
   reports: ReportDefinition[];
 }
+
+export interface AppSetting {
+  id: UUID;
+  key: string;
+  category: string;
+  value: unknown;
+  description: string | null;
+  is_system: boolean;
+  updated_at: ISODateTime;
+}

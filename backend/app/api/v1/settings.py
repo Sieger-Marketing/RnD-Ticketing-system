@@ -22,7 +22,12 @@ from app.schemas.execution import (
     SettingUpdate,
     StatusHistoryOut,
 )
-from app.services import audit_service, cleanup_service, settings_service
+from app.services import (
+    audit_service,
+    cleanup_service,
+    health_service,
+    settings_service,
+)
 
 router = APIRouter(tags=["settings"])
 
@@ -80,6 +85,16 @@ def update_setting(
         new_value={"value": payload.value},
         context=client_context(request),
     )
+
+    # Health is a stored column, so a threshold change alters what every rating
+    # ought to be without anything going back to re-rate it. Nothing about the
+    # work changed, which is exactly why the roll-up would never run. Re-rate
+    # here instead, or the new rule takes effect only on projects that happen
+    # to be touched afterwards -- the worst kind of half-applied setting,
+    # because the screens still look authoritative.
+    if key == "health.rules":
+        health_service.refresh_all_health(db)
+
     return SettingOut.model_validate(row)
 
 
@@ -110,6 +125,28 @@ def _validate_setting(key: str, value) -> None:
             raise ValidationError(
                 "Thresholds must increase: underutilized < healthy <= high_load."
             )
+    if key == "health.rules":
+        if not isinstance(value, dict):
+            raise ValidationError("Health rules must be an object.")
+        for name, threshold in value.items():
+            if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
+                raise ValidationError(f"'{name}' must be a number.")
+            if threshold < 0:
+                raise ValidationError(f"'{name}' cannot be negative.")
+        # Amber is the warning and red is the alarm, so amber has to come
+        # first. Reversed, every release jumps straight to red and the amber
+        # band silently stops existing -- which reads as a department in
+        # crisis rather than as a typo.
+        for suffix in {
+            name[len("amber_") :] for name in value if name.startswith("amber_")
+        }:
+            amber, red = value.get(f"amber_{suffix}"), value.get(f"red_{suffix}")
+            if amber is not None and red is not None and amber > red:
+                raise ValidationError(
+                    f"amber_{suffix} ({amber:g}) must not be greater than "
+                    f"red_{suffix} ({red:g}); amber warns before red alarms."
+                )
+
     if key == "capacity.working_days":
         if not isinstance(value, list) or not value:
             raise ValidationError("Working days must be a non-empty list.")

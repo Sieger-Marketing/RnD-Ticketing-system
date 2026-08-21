@@ -141,10 +141,16 @@ def delivered_late_days(
 
 
 def sweep_delays(db: Session, today: date | None = None) -> dict[str, int]:
-    """Recompute delay_days across tasks, releases and projects.
+    """Bring the stored delay days and RAG ratings up to today's date.
 
-    Run on a schedule or before a dashboard read. Idempotent: running it twice
-    on the same day changes nothing.
+    Both go stale on their own. Nothing about a release changes when it slips
+    past its committed date overnight, so the roll-up -- which only runs when
+    somebody touches the work -- never revisits it, and the release keeps
+    showing yesterday's colour. That is how a release lands 162 days past its
+    handover date still rated green.
+
+    Run on a schedule. Idempotent: running it twice on the same day changes
+    nothing the second time.
     """
     today = today or date.today()
     counts = {"tasks": 0, "releases": 0, "projects": 0}
@@ -178,6 +184,12 @@ def sweep_delays(db: Session, today: date | None = None) -> dict[str, int]:
             counts["projects"] += 1
 
     db.flush()
+
+    # The colours have to follow the dates, or the sweep fixes the number a
+    # report reads and leaves the bar every manager actually looks at wrong.
+    rerated = refresh_all_health(db, today)
+    counts["releases_rerated"] = rerated["releases"]
+    counts["projects_rerated"] = rerated["projects"]
     return counts
 
 
@@ -669,3 +681,35 @@ def refresh_health(db: Session, project: Project, today: date | None = None) -> 
     )
     project.health, project.health_reasons = evaluate_project_health(db, project, today)
     db.flush()
+
+
+def refresh_all_health(db: Session, today: date | None = None) -> dict[str, int]:
+    """Re-rate every project and release against the current rules.
+
+    Health is a stored column -- lists filter and sort on it -- and it is
+    normally rewritten as a side effect of the roll-up, when something about
+    the work itself changes. A threshold change is the one case where nothing
+    about the work changed but every rating may have: raise the amber cut-off
+    and releases that were amber this morning are green this afternoon, except
+    that nothing would have gone back to ask.
+
+    So this exists to be called when the rules move. Idempotent, and it reports
+    how many ratings actually changed rather than how many rows it touched,
+    because a rule change that alters nothing is worth knowing about too.
+    """
+    today = today or date.today()
+    changed = {"projects": 0, "releases": 0}
+
+    for project in db.execute(select(Project)).scalars():
+        before_project = project.health
+        before_releases = {r.id: r.health for r in project.releases}
+
+        refresh_health(db, project, today)
+
+        if project.health != before_project:
+            changed["projects"] += 1
+        for release in project.releases:
+            if release.health != before_releases.get(release.id):
+                changed["releases"] += 1
+
+    return changed
