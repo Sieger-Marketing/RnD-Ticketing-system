@@ -330,6 +330,28 @@ def evaluate_release_health(
                 )
             )
 
+    # The question everyone actually asks, answered by one comparison rather
+    # than inferred from a scatter of task-level warnings: given what we now
+    # know, do we still land on the date we promised?
+    if release.planned_end and release.forecast_end:
+        over = (release.forecast_end - release.planned_end).days
+        if over > 0:
+            level = _band(
+                over,
+                float(rules.get("amber_delay_days", 2)),
+                float(rules.get("red_delay_days", 5)),
+            )
+            if level:
+                findings.append(
+                    Finding(
+                        level,
+                        "forecast_past_commitment",
+                        f"Now expected {over} day(s) after the committed "
+                        f"handover of {release.planned_end.isoformat()}",
+                        over,
+                    )
+                )
+
     # A target that has moved is not the same as a target that was met. The
     # release may be perfectly on track against today's date and still have
     # slipped a fortnight from what was promised, and only one of those two
@@ -488,6 +510,27 @@ def evaluate_project_health(
                     release_delay,
                 )
             )
+
+    # And the same at project level, which is the number a director wants.
+    if project.required_completion_date and project.forecast_end:
+        over = (project.forecast_end - project.required_completion_date).days
+        if over > 0:
+            level = _band(
+                over,
+                float(rules.get("amber_delay_days", 2)),
+                float(rules.get("red_delay_days", 5)),
+            )
+            if level:
+                findings.append(
+                    Finding(
+                        level,
+                        "project_forecast_late",
+                        f"Now expected to finish {over} day(s) after the "
+                        f"required date of "
+                        f"{project.required_completion_date.isoformat()}",
+                        over,
+                    )
+                )
 
     # The same question one level up: a release planned to land after the
     # customer's required date is a plan that does not close, however healthy

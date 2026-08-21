@@ -29,7 +29,7 @@ from app.models.execution import Revision, TimeEntry
 from app.models.project import Project
 from app.models.release import DesignRelease
 from app.models.task import Task
-from app.services import health_service, kpi, schedule_service
+from app.services import forecast_service, health_service, kpi, schedule_service
 
 _DONE_TASK_VALUES = {TaskStatus.COMPLETED.value, TaskStatus.APPROVED.value}
 _OPEN_TASK_VALUES = [s.value for s in OPEN_TASK_STATUSES]
@@ -81,6 +81,7 @@ def refresh_release(db: Session, release: DesignRelease, today: date | None = No
     # release started when its first task started and finished when its last
     # one finished, whatever day somebody pressed Complete.
     schedule_service.refresh_actual_dates(db, release)
+    forecast_service.refresh_release_forecast(db, release, today)
 
     db.flush()
     return release
@@ -116,6 +117,7 @@ def refresh_project(db: Session, project: Project, today: date | None = None) ->
     else:
         project.completion_percent = 0.0
 
+    forecast_service.refresh_project_forecast(db, project, today)
     health_service.refresh_health(db, project, today)
     db.flush()
     return project

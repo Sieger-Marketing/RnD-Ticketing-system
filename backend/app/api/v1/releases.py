@@ -516,6 +516,14 @@ def _detail(db: Session, release: DesignRelease) -> ReleaseDetail:
         actual_end=release.actual_end,
         baseline_planned_start=release.baseline_planned_start,
         baseline_planned_end=release.baseline_planned_end,
+        dispatch_date=release.dispatch_date,
+        forecast_end=release.forecast_end,
+        variance_days=(
+            (release.forecast_end - release.planned_end).days
+            if release.forecast_end and release.planned_end
+            else None
+        ),
+        is_completion_critical=release.is_completion_critical,
         health_reasons=release.health_reasons or [],
         template_version_id=release.template_version_id,
         template_name=version.template.name if version and version.template else None,

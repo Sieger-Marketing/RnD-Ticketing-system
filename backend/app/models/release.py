@@ -13,6 +13,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     ForeignKey,
@@ -81,6 +82,23 @@ class DesignRelease(Base, BusinessEntity):
     planned_end: Mapped[date | None] = mapped_column(Date, index=True)
     actual_start: Mapped[date | None] = mapped_column(Date)
     actual_end: Mapped[date | None] = mapped_column(Date)
+
+    #: When the system ships. Production owns this, not design -- the measured
+    #: offsets show packing and stuffing landing around and after it, so it was
+    #: never design's deadline. Kept for context and for the downstream teams.
+    dispatch_date: Mapped[date | None] = mapped_column(Date, index=True)
+
+    #: When this release is currently expected to be handed over, derived from
+    #: the phases rather than typed. Recomputed on every roll-up, so it moves
+    #: with the calendar instead of sitting frozen at a date already passed.
+    forecast_end: Mapped[date | None] = mapped_column(Date, index=True)
+
+    #: Whether this release gates the project's completion. A late Ceiling
+    #: Supports does not hold a project the way a late Structures does, and
+    #: rolling every release into the project forecast equally overstates risk.
+    is_completion_critical: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     #: What was originally committed, stamped the first time the release is
     #: given dates and never moved again.

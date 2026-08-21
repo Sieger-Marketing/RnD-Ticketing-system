@@ -86,6 +86,12 @@ class Project(Base, BusinessEntity):
     customer_deadline: Mapped[date | None] = mapped_column(Date)
     actual_completion_date: Mapped[date | None] = mapped_column(Date)
 
+    #: When the project is currently expected to finish: the latest forecast
+    #: among the releases that gate its completion. Derived, never typed.
+    #: Compared against required_completion_date, this is the one number that
+    #: answers "will we make it", which nothing in the system could answer.
+    forecast_end: Mapped[date | None] = mapped_column(Date, index=True)
+
     planned_hours: Mapped[float] = mapped_column(
         Numeric(10, 2), default=0, nullable=False
     )

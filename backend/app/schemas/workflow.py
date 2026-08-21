@@ -95,6 +95,10 @@ class ProjectSummary(ORMModel):
     #: first things anyone asks about a parking project.
     car_count: int | None = None
     gfc_date: date | None = None
+    #: When the project is now expected to finish, and by how many days it
+    #: misses the required date. Derived from the releases that gate it.
+    forecast_end: date | None = None
+    variance_days: int | None = None
 
     @classmethod
     def from_model(cls, p, release_count: int = 0, task_count: int = 0) -> "ProjectSummary":
@@ -123,6 +127,12 @@ class ProjectSummary(ORMModel):
             task_count=task_count,
             car_count=p.car_count,
             gfc_date=p.gfc_date,
+            forecast_end=p.forecast_end,
+            variance_days=(
+                (p.forecast_end - p.required_completion_date).days
+                if p.forecast_end and p.required_completion_date
+                else None
+            ),
         )
 
 
@@ -246,6 +256,14 @@ class ReleaseDetail(ReleaseSummary):
     #: forecast and may have moved; these have not.
     baseline_planned_start: date | None = None
     baseline_planned_end: date | None = None
+    #: When the system ships. Production owns this, not design.
+    dispatch_date: date | None = None
+    #: When handover is now expected, derived from the phases.
+    forecast_end: date | None = None
+    #: Days between the forecast and the commitment. Positive means late,
+    #: null means we cannot say -- which is not the same as on time.
+    variance_days: int | None = None
+    is_completion_critical: bool = True
     health_reasons: list[dict] = []
     template_version_id: uuid.UUID | None = None
     template_name: str | None = None
