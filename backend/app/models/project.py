@@ -45,7 +45,6 @@ class Project(Base, BusinessEntity):
             name="ck_project_date_order",
         ),
         Index("ix_projects_status_health", "status", "health"),
-        Index("ix_projects_manager_status", "design_manager_id", "status"),
         Index("ix_projects_lead_status", "team_lead_id", "status"),
     )
 
@@ -73,14 +72,11 @@ class Project(Base, BusinessEntity):
     project_manager_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
-    design_manager_id: Mapped[uuid.UUID | None] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
-    )
-    #: The team lead accountable for running this project's design work.
-    #: Releases and tasks already carry one; a project did not, so a lead could
-    #: only be attributed to a project indirectly -- by walking down to a
-    #: release they happened to lead. That fails for a project whose releases
-    #: do not exist yet, which is precisely when somebody needs to own it.
+    #: The one person accountable for driving this project. Replaced
+    #: design_manager_id, which named the department head rather than whoever
+    #: was actually running the work -- a distinction that mattered the moment
+    #: the department grew past one manager and every project still pointed at
+    #: them.
     team_lead_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -142,9 +138,6 @@ class Project(Base, BusinessEntity):
     )
     product: Mapped["Product | None"] = relationship(
         back_populates="projects", lazy="selectin"
-    )
-    design_manager: Mapped["User | None"] = relationship(
-        foreign_keys=[design_manager_id], lazy="selectin"
     )
     project_manager: Mapped["User | None"] = relationship(
         foreign_keys=[project_manager_id], lazy="selectin"

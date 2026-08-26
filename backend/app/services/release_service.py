@@ -256,7 +256,7 @@ def complete(
 
     notification_service.notify(
         db,
-        user_id=project.design_manager_id if project else None,
+        user_id=project.team_lead_id if project else None,
         event_type=Event.RELEASE_COMPLETED,
         title=f"Release completed: {release.name}",
         body=f"{release.code} closed at {float(release.actual_hours or 0):.1f}h "
@@ -315,7 +315,7 @@ def _maybe_complete_project(
     )
     notification_service.notify(
         db,
-        user_id=project.design_manager_id,
+        user_id=project.team_lead_id,
         event_type="project.completed",
         title=f"Project completed: {project.name}",
         body=f"{project.code} finished with all releases closed.",

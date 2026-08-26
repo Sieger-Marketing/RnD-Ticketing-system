@@ -244,7 +244,6 @@ export interface ProjectSummary {
   revision_count: number;
   start_date: ISODate | null;
   required_completion_date: ISODate | null;
-  design_manager_name: string | null;
   team_lead_id: UUID | null;
   team_lead_name: string | null;
   release_count: number;

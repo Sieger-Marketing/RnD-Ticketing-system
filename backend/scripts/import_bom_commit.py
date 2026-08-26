@@ -193,7 +193,7 @@ def run(workbook: Path, project_name: str, keep_demo: str | None) -> None:
             code=code_service.next_code(db, "project"),
             name=project_name,
             product_id=product.id,
-            design_manager_id=manager.id if manager else None,
+            team_lead_id=None,  # assigned by a manager once the work is scheduled
             created_by_id=manager.id if manager else None,
             status=ProjectStatus.DESIGN_IN_PROGRESS.value,
             project_type="BOM Release",

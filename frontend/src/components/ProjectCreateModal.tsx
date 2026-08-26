@@ -23,7 +23,6 @@ const EMPTY = {
   project_type: "",
   sales_order: "",
   work_order: "",
-  design_manager_id: "",
   team_lead_id: "",
   priority: "Medium",
   start_date: "",
@@ -47,7 +46,6 @@ export function ProjectCreateModal({
 
   const { data: customers } = useCustomers();
   const { data: products } = useProducts();
-  const { data: managers } = useUsers({ role: "Design Manager" });
   const { data: leads } = useUsers({ role: "Team Lead" });
   const { data: vocab } = useVocabularies();
 
@@ -91,7 +89,11 @@ export function ProjectCreateModal({
             type="button"
             className="btn-primary"
             onClick={submit}
-            disabled={create.isPending || form.name.trim() === ""}
+            disabled={
+              create.isPending ||
+              form.name.trim() === "" ||
+              form.team_lead_id === ""
+            }
           >
             {create.isPending && <Spinner />}
             Create project
@@ -192,23 +194,11 @@ export function ProjectCreateModal({
             />
           </Field>
 
-          <Field label="Design manager" htmlFor="design_manager">
-            <Select
-              id="design_manager"
-              value={form.design_manager_id}
-              onChange={(e) => set("design_manager_id")(e.target.value)}
-              placeholder="Unassigned"
-              options={(managers?.items ?? []).map((u) => ({
-                value: u.id,
-                label: u.full_name,
-              }))}
-            />
-          </Field>
-
           <Field
             label="Team lead"
             htmlFor="team_lead"
-            hint="Who runs the design work. Can be set later."
+            hint="The one person driving this project."
+            required
           >
             <Select
               id="team_lead"

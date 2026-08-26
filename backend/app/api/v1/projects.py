@@ -57,7 +57,6 @@ def _visible_projects(scope: AccessScope):
     )
     return stmt.where(
         or_(
-            Project.design_manager_id == user_id,
             Project.project_manager_id == user_id,
             Project.team_lead_id == user_id,
             Project.created_by_id == user_id,
@@ -114,7 +113,6 @@ def list_projects(
     priority: list[str] | None = Query(None),
     customer_id: uuid.UUID | None = None,
     product_id: uuid.UUID | None = None,
-    design_manager_id: uuid.UUID | None = None,
     team_lead_id: uuid.UUID | None = None,
     overdue_only: bool = False,
     search: str | None = None,
@@ -132,8 +130,6 @@ def list_projects(
         stmt = stmt.where(Project.customer_id == customer_id)
     if product_id:
         stmt = stmt.where(Project.product_id == product_id)
-    if design_manager_id:
-        stmt = stmt.where(Project.design_manager_id == design_manager_id)
     if team_lead_id:
         stmt = stmt.where(Project.team_lead_id == team_lead_id)
     if overdue_only:
@@ -197,9 +193,6 @@ def create_project(
         sales_order=payload.sales_order,
         work_order=payload.work_order,
         project_manager_id=payload.project_manager_id,
-        # Default the design manager to whoever created it, since in practice
-        # the manager creating a project is the one who will run it.
-        design_manager_id=payload.design_manager_id or user.id,
         team_lead_id=payload.team_lead_id,
         priority=payload.priority,
         start_date=payload.start_date,
@@ -252,8 +245,7 @@ def update_project(
 
     tracked = [
         "name", "description", "customer_id", "product_id", "project_type",
-        "sales_order", "work_order", "project_manager_id", "design_manager_id",
-        "team_lead_id",
+        "sales_order", "work_order", "project_manager_id", "team_lead_id",
         "priority", "status", "start_date", "required_completion_date",
         "internal_deadline", "customer_deadline", "external_id",
     ]

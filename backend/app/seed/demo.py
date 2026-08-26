@@ -580,7 +580,7 @@ def run(db: Session, *, password: str = "Design@123") -> dict:
             project_type=RNG.choice(["New Product", "Customisation", "Repeat Order"]),
             sales_order=f"SO-{RNG.randint(10000, 99999)}",
             work_order=f"WO-{RNG.randint(10000, 99999)}",
-            design_manager_id=manager.id,
+            team_lead_id=manager.id,
             project_manager_id=manager.id,
             priority=(
                 Priority.CRITICAL.value

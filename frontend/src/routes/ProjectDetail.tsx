@@ -382,7 +382,6 @@ export default function ProjectDetail() {
               />
               <Stat label="GFC date" value={shortDate(p.gfc_date)} />
               <Stat label="Type" value={p.project_type ?? DASH} />
-              <Stat label="Design manager" value={p.design_manager_name ?? DASH} />
               <Stat label="Team lead" value={<TeamLeadPicker project={p} />} />
               <Stat label="Sales order" value={p.sales_order ?? DASH} />
               <Stat label="Work order" value={p.work_order ?? DASH} />
