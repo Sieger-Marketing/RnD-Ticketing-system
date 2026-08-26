@@ -46,6 +46,7 @@ class Project(Base, BusinessEntity):
         ),
         Index("ix_projects_status_health", "status", "health"),
         Index("ix_projects_manager_status", "design_manager_id", "status"),
+        Index("ix_projects_lead_status", "team_lead_id", "status"),
     )
 
     name: Mapped[str] = mapped_column(String(240), index=True)
@@ -73,6 +74,14 @@ class Project(Base, BusinessEntity):
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
     design_manager_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    #: The team lead accountable for running this project's design work.
+    #: Releases and tasks already carry one; a project did not, so a lead could
+    #: only be attributed to a project indirectly -- by walking down to a
+    #: release they happened to lead. That fails for a project whose releases
+    #: do not exist yet, which is precisely when somebody needs to own it.
+    team_lead_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
 
@@ -139,6 +148,9 @@ class Project(Base, BusinessEntity):
     )
     project_manager: Mapped["User | None"] = relationship(
         foreign_keys=[project_manager_id], lazy="selectin"
+    )
+    team_lead: Mapped["User | None"] = relationship(
+        foreign_keys=[team_lead_id], lazy="selectin"
     )
     created_by: Mapped["User | None"] = relationship(foreign_keys=[created_by_id])
 

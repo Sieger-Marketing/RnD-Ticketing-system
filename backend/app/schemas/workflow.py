@@ -25,6 +25,7 @@ class ProjectCreate(BaseModel):
     work_order: str | None = None
     project_manager_id: uuid.UUID | None = None
     design_manager_id: uuid.UUID | None = None
+    team_lead_id: uuid.UUID | None = None
     priority: str = Priority.MEDIUM.value
     start_date: date | None = None
     required_completion_date: date | None = None
@@ -53,6 +54,7 @@ class ProjectUpdate(BaseModel):
     work_order: str | None = None
     project_manager_id: uuid.UUID | None = None
     design_manager_id: uuid.UUID | None = None
+    team_lead_id: uuid.UUID | None = None
     priority: str | None = None
     status: str | None = None
     start_date: date | None = None
@@ -88,6 +90,8 @@ class ProjectSummary(ORMModel):
     start_date: date | None = None
     required_completion_date: date | None = None
     design_manager_name: str | None = None
+    team_lead_id: uuid.UUID | None = None
+    team_lead_name: str | None = None
     release_count: int = 0
     task_count: int = 0
     #: Car spaces the system provides, and the date the drawings are good for
@@ -123,6 +127,8 @@ class ProjectSummary(ORMModel):
             start_date=p.start_date,
             required_completion_date=p.required_completion_date,
             design_manager_name=p.design_manager.full_name if p.design_manager else None,
+            team_lead_id=p.team_lead_id,
+            team_lead_name=p.team_lead.full_name if p.team_lead else None,
             release_count=release_count,
             task_count=task_count,
             car_count=p.car_count,

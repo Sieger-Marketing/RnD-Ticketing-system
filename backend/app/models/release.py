@@ -23,6 +23,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    true,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -96,8 +97,11 @@ class DesignRelease(Base, BusinessEntity):
     #: Whether this release gates the project's completion. A late Ceiling
     #: Supports does not hold a project the way a late Structures does, and
     #: rolling every release into the project forecast equally overstates risk.
+    #: The server default is real and load-bearing: it is what let this column
+    #: be added NOT NULL to 218 existing releases, and it keeps raw inserts and
+    #: the BOM import honest without every caller remembering the flag.
     is_completion_critical: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
+        Boolean, default=True, server_default=true(), nullable=False
     )
 
     #: What was originally committed, stamped the first time the release is

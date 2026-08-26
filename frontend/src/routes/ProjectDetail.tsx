@@ -2,13 +2,14 @@
  * The per-project dashboard (spec section 26).
  */
 
-import { ArrowLeft, GitBranch, Plus, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Check, GitBranch, Plus, RefreshCw } from "lucide-react";
+import { type ChangeEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApplyStandardModal } from "@/components/ApplyStandardModal";
 import { ReleaseCreateModal } from "@/components/ReleaseCreateModal";
 import { ReleaseTimeline, type TimelineRelease } from "@/components/ReleaseTimeline";
+import { Select } from "@/components/ui/form";
 import {
   Card,
   ErrorState,
@@ -18,14 +19,25 @@ import {
   PriorityLabel,
   ProgressBar,
   SkeletonRows,
+  Spinner,
   Stat,
   StatusBadge,
   toneFor,
 } from "@/components/ui/primitives";
-import { useProject, useProjectDashboard, useReleases } from "@/hooks/queries";
+import {
+  useProject,
+  useProjectDashboard,
+  useReleases,
+  useUpdateProject,
+  useUsers,
+} from "@/hooks/queries";
 import { DASH, hours, percent, shortDate, variance } from "@/lib/format";
 import { P, useAuth } from "@/store/auth";
-import type { Health, HealthReason } from "@/types/api";
+import type {
+  Health,
+  HealthReason,
+  ProjectDetail as ProjectDetailData,
+} from "@/types/api";
 
 interface ProjectDashboard {
   project: {
@@ -371,6 +383,7 @@ export default function ProjectDetail() {
               <Stat label="GFC date" value={shortDate(p.gfc_date)} />
               <Stat label="Type" value={p.project_type ?? DASH} />
               <Stat label="Design manager" value={p.design_manager_name ?? DASH} />
+              <Stat label="Team lead" value={<TeamLeadPicker project={p} />} />
               <Stat label="Sales order" value={p.sales_order ?? DASH} />
               <Stat label="Work order" value={p.work_order ?? DASH} />
               <Stat label="Start" value={shortDate(p.start_date)} />
@@ -450,5 +463,61 @@ export default function ProjectDetail() {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Assign or reassign the team lead, in place.
+ *
+ * Everything else on this card is read-only, and a whole edit form for one
+ * field would be ceremony -- reassigning a lead is a single decision, usually
+ * made while looking at the project rather than while editing it. So it saves
+ * on change and says so, and falls back to plain text for anyone without
+ * permission to change it rather than showing a control that would be refused.
+ */
+function TeamLeadPicker({ project }: { project: ProjectDetailData }) {
+  const can = useAuth((state) => state.can);
+  const { data: leads } = useUsers({ role: "Team Lead" });
+  const update = useUpdateProject(project.id);
+  const [saved, setSaved] = useState(false);
+
+  if (!can(P.projectUpdate)) {
+    return <>{project.team_lead_name ?? DASH}</>;
+  }
+
+  const assign = (value: string) => {
+    setSaved(false);
+    update.mutate(
+      // Clearing the field has to send null: an omitted key means "leave it
+      // alone", so "Unassigned" would silently do nothing.
+      { team_lead_id: value === "" ? null : value },
+      { onSuccess: () => setSaved(true) },
+    );
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Select
+        aria-label="Team lead"
+        className="py-1 text-sm font-normal"
+        value={project.team_lead_id ?? ""}
+        disabled={update.isPending}
+        onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+          assign(event.target.value)
+        }
+        placeholder="Unassigned"
+        options={(leads?.items ?? []).map((u) => ({
+          value: u.id,
+          label: u.full_name,
+        }))}
+      />
+      {update.isPending && <Spinner className="h-3.5 w-3.5 shrink-0" />}
+      {saved && !update.isPending && (
+        <Check className="h-3.5 w-3.5 shrink-0 text-rag-green" />
+      )}
+      {update.isError && (
+        <span className="text-2xs text-rag-red">not saved</span>
+      )}
+    </div>
   );
 }

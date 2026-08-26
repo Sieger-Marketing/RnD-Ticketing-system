@@ -24,6 +24,7 @@ const EMPTY = {
   sales_order: "",
   work_order: "",
   design_manager_id: "",
+  team_lead_id: "",
   priority: "Medium",
   start_date: "",
   required_completion_date: "",
@@ -47,6 +48,7 @@ export function ProjectCreateModal({
   const { data: customers } = useCustomers();
   const { data: products } = useProducts();
   const { data: managers } = useUsers({ role: "Design Manager" });
+  const { data: leads } = useUsers({ role: "Team Lead" });
   const { data: vocab } = useVocabularies();
 
   const set = (key: keyof typeof EMPTY) => (value: string) =>
@@ -197,6 +199,23 @@ export function ProjectCreateModal({
               onChange={(e) => set("design_manager_id")(e.target.value)}
               placeholder="Unassigned"
               options={(managers?.items ?? []).map((u) => ({
+                value: u.id,
+                label: u.full_name,
+              }))}
+            />
+          </Field>
+
+          <Field
+            label="Team lead"
+            htmlFor="team_lead"
+            hint="Who runs the design work. Can be set later."
+          >
+            <Select
+              id="team_lead"
+              value={form.team_lead_id}
+              onChange={(e) => set("team_lead_id")(e.target.value)}
+              placeholder="Unassigned"
+              options={(leads?.items ?? []).map((u) => ({
                 value: u.id,
                 label: u.full_name,
               }))}
