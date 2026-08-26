@@ -219,6 +219,31 @@ const GROUPS: Group[] = [
     ],
   },
   {
+    title: "Who gets told what",
+    blurb:
+      "Everything reaches the person responsible. These are the events that also reach whoever holds the Design Manager role.",
+    lists: [
+      {
+        setting: "notifications.manager_copy_events",
+        label: "Events copied to the design manager",
+        hint:
+          "One per line. Project- and release-level events by default: copying task traffic across 218 releases would bury the notices worth reading.",
+      },
+    ],
+    fixed: [
+      {
+        rule: "The copy resolves by role, not by name",
+        why:
+          "Whoever holds Design Manager is copied. A change of manager is an account change, not a code change.",
+      },
+      {
+        rule: "Nobody is told the same thing twice",
+        why:
+          "The lead and the manager are one recipient list, so somebody who is both gets one notice.",
+      },
+    ],
+  },
+  {
     title: "How generated task dates are laid out",
     blurb: "Used when a release's tasks are created from the standard.",
     lists: [

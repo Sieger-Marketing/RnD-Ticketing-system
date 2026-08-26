@@ -54,6 +54,19 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+# Then the rows the schema implies: permissions, role bundles, default settings.
+# Migrations move the schema and leave these behind, so a permission added to a
+# role bundle in Python was never actually granted, and a new default setting
+# never appeared on the settings screen -- while the code kept working, because
+# it falls back to the default. Additive and idempotent; a no-op on the runs
+# where nothing changed. Non-fatal on purpose: a stale role bundle is worth a
+# warning, not a department without a portal.
+Write-Log 'Applying bootstrap (permissions, roles, settings)'
+& $python (Join-Path $PSScriptRoot 'bootstrap_db.py') 2>&1 | ForEach-Object { Write-Log $_ 'BOOTSTRAP' }
+if ($LASTEXITCODE -ne 0) {
+    Write-Log 'Bootstrap failed; starting anyway. Roles or settings may be stale.' 'WARN'
+}
+
 # The supervision loop.
 #
 # A crash at 03:00 must not mean the department finds the portal down at 09:00,
