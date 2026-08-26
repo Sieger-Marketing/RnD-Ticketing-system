@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
@@ -9,11 +9,14 @@ import {
   useCreateProject,
   useCustomers,
   useProducts,
+  useUpdateProject,
   useUsers,
   useVocabularies,
 } from "@/hooks/queries";
 import { PRIORITIES, toOptions } from "@/lib/vocab";
 import type { ProjectDetail } from "@/types/api";
+
+const EMPTY_UUID = "00000000-0000-0000-0000-000000000000";
 
 const EMPTY = {
   name: "",
@@ -32,43 +35,90 @@ const EMPTY = {
   external_id: "",
 };
 
+/** The form's shape, filled from a project when one is being edited. */
+function formFor(project: ProjectDetail | undefined): typeof EMPTY {
+  if (!project) return EMPTY;
+  return {
+    name: project.name ?? "",
+    description: project.description ?? "",
+    customer_id: project.customer_id ?? "",
+    product_id: project.product_id ?? "",
+    project_type: project.project_type ?? "",
+    sales_order: project.sales_order ?? "",
+    work_order: project.work_order ?? "",
+    team_lead_id: project.team_lead_id ?? "",
+    priority: project.priority ?? "Medium",
+    start_date: project.start_date ?? "",
+    required_completion_date: project.required_completion_date ?? "",
+    internal_deadline: project.internal_deadline ?? "",
+    customer_deadline: project.customer_deadline ?? "",
+    external_id: project.external_id ?? "",
+  };
+}
+
+/**
+ * Creates a project, or edits one.
+ *
+ * One form rather than two, because two drift: a field added to the create
+ * form and forgotten on the edit form is a field nobody can ever correct.
+ */
 export function ProjectCreateModal({
   open,
   onClose,
   onCreated,
+  project,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (project: ProjectDetail) => void;
+  /** Editing this project rather than creating a new one. */
+  project?: ProjectDetail;
 }) {
-  const [form, setForm] = useState(EMPTY);
+  const editing = project !== undefined;
+  const [form, setForm] = useState(() => formFor(project));
   const create = useCreateProject();
+  const update = useUpdateProject(project?.id ?? EMPTY_UUID);
+  const mutation = editing ? update : create;
+
+  // Reopening on a different project, or after it was saved elsewhere, must
+  // show that project rather than whatever was last typed.
+  useEffect(() => {
+    if (open) setForm(formFor(project));
+  }, [open, project]);
 
   const { data: customers } = useCustomers();
   const { data: products } = useProducts();
   const { data: leads } = useUsers({ role: "Team Lead" });
   const { data: vocab } = useVocabularies();
 
+  const typeOptions = vocab?.project_types ?? [];
+
   const set = (key: keyof typeof EMPTY) => (value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   const close = () => {
-    create.reset();
-    setForm(EMPTY);
+    mutation.reset();
+    setForm(formFor(project));
     onClose();
   };
 
   const submit = () => {
-    // Blank strings would fail the API's UUID and date parsing, so they are
-    // dropped rather than sent as "".
     const payload: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(form)) {
-      if (value !== "") payload[key] = value;
+      if (value !== "") {
+        payload[key] = value;
+      } else if (editing) {
+        // On an edit, a cleared field means "remove this". Dropping it as the
+        // create path does would make clearing a date silently impossible.
+        // On a create there is nothing to clear, so a blank is still omitted:
+        // the API rejects "" where it wants a UUID or a date.
+        payload[key] = null;
+      }
     }
-    create.mutate(payload, {
-      onSuccess: (project) => {
-        setForm(EMPTY);
-        onCreated(project);
+    mutation.mutate(payload as never, {
+      onSuccess: (saved: ProjectDetail) => {
+        if (!editing) setForm(EMPTY);
+        onCreated(saved);
       },
     });
   };
@@ -77,8 +127,12 @@ export function ProjectCreateModal({
     <Modal
       open={open}
       onClose={close}
-      title="New project"
-      description="A project holds the design releases for one customer deliverable."
+      title={editing ? `Edit ${project.code}` : "New project"}
+      description={
+        editing
+          ? "Changes are recorded against your name in the audit trail."
+          : "A project holds the design releases for one customer deliverable."
+      }
       size="lg"
       footer={
         <>
@@ -90,19 +144,19 @@ export function ProjectCreateModal({
             className="btn-primary"
             onClick={submit}
             disabled={
-              create.isPending ||
+              mutation.isPending ||
               form.name.trim() === "" ||
               form.team_lead_id === ""
             }
           >
-            {create.isPending && <Spinner />}
-            Create project
+            {mutation.isPending && <Spinner />}
+            {editing ? "Save changes" : "Create project"}
           </button>
         </>
       }
     >
       <div className="space-y-4">
-        <FormError error={create.error} />
+        <FormError error={mutation.error} />
 
         <Field label="Project name" htmlFor="name" required>
           <TextInput
@@ -172,16 +226,29 @@ export function ProjectCreateModal({
             />
           </Field>
 
-          <Field label="Project type" htmlFor="project_type">
+          <Field
+            label="Project type"
+            htmlFor="project_type"
+            hint={
+              form.project_type && !typeOptions.includes(form.project_type)
+                ? "This project predates the current list. Leaving it alone keeps it as it is."
+                : undefined
+            }
+          >
             <Select
               id="project_type"
               value={form.project_type}
               onChange={(e) => set("project_type")(e.target.value)}
               placeholder="Choose a project type"
-              options={(vocab?.project_types ?? []).map((v) => ({
-                value: v,
-                label: v,
-              }))}
+              options={[
+                ...typeOptions.map((v) => ({ value: v, label: v })),
+                // A value the vocabulary no longer offers is still the truth
+                // about this project. Dropping it from the list would blank the
+                // control and quietly rewrite the field on the next save.
+                ...(form.project_type && !typeOptions.includes(form.project_type)
+                  ? [{ value: form.project_type, label: `${form.project_type} (retired)` }]
+                  : []),
+              ]}
             />
           </Field>
 

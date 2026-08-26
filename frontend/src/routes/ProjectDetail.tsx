@@ -2,10 +2,11 @@
  * The per-project dashboard (spec section 26).
  */
 
-import { ArrowLeft, Check, GitBranch, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, GitBranch, Pencil, Plus, RefreshCw } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { ProjectCreateModal } from "@/components/ProjectCreateModal";
 import { ApplyStandardModal } from "@/components/ApplyStandardModal";
 import { ReleaseCreateModal } from "@/components/ReleaseCreateModal";
 import { ReleaseTimeline, type TimelineRelease } from "@/components/ReleaseTimeline";
@@ -87,6 +88,7 @@ export default function ProjectDetail() {
   const can = useAuth((s) => s.can);
   const [creatingRelease, setCreatingRelease] = useState(false);
   const [applyingStandard, setApplyingStandard] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const project = useProject(projectId);
   const dashboard = useProjectDashboard(projectId);
@@ -151,6 +153,16 @@ export default function ProjectDetail() {
         }
         actions={
           <>
+            {can(P.projectUpdate) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit
+              </button>
+            )}
             <button
               type="button"
               className="btn-secondary"
@@ -437,6 +449,16 @@ export default function ProjectDetail() {
           </Card>
         </div>
       </div>
+
+      <ProjectCreateModal
+        open={editing}
+        project={p}
+        onClose={() => setEditing(false)}
+        onCreated={() => {
+          setEditing(false);
+          void project.refetch();
+        }}
+      />
 
       {projectId && applyingStandard && (
         <ApplyStandardModal

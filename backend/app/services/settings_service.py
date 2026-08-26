@@ -213,8 +213,10 @@ DEFAULT_SETTINGS: dict[str, tuple[str, Any, str]] = {
     ),
     "workflow.project_types": (
         "workflow",
-        ["New Product", "Customisation", "Repeat Order", "Retrofit", "Study"],
-        "Project types.",
+        ["Standard", "Customised"],
+        "Project types. A standard system is built to the product's usual "
+        "design; a customised one departs from it, which is what makes its "
+        "release list and its effort different.",
     ),
     "workflow.require_delay_reason": (
         "workflow",
