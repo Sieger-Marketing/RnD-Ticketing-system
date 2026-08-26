@@ -57,11 +57,19 @@ def _visible(scope: AccessScope):
     task_release_ids = select(Task.release_id).where(
         or_(Task.assigned_to_id == user_id, Task.team_lead_id == user_id)
     )
+    # Leading the PROJECT is enough to see its releases. Without this a lead
+    # opens the project they own and is told it has no releases, while the
+    # server refuses to create them because they already exist -- two true
+    # statements that contradict each other on screen. Releases arrive from the
+    # import with no lead of their own, so this was every imported project.
+    led_project_ids = select(Project.id).where(Project.team_lead_id == user_id)
+
     return stmt.where(
         or_(
             DesignRelease.team_lead_id == user_id,
             DesignRelease.created_by_id == user_id,
             DesignRelease.id.in_(task_release_ids),
+            DesignRelease.project_id.in_(led_project_ids),
         )
     )
 

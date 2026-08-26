@@ -229,6 +229,13 @@ _DESIGN_MANAGER = _DIRECTOR + [
 #: add every release, which is not driving it.
 _TEAM_LEAD = [
     P.PROJECT_VIEW_ASSIGNED,
+    # Edit and cancel the projects they lead. Both are bounded by
+    # visible_projects, so this reaches the projects handed to them and no
+    # others, and "delete" is a soft cancel -- the row, its releases, its tasks
+    # and its history all survive, which is the only reason it is safe to hand
+    # to somebody other than the manager.
+    P.PROJECT_UPDATE,
+    P.PROJECT_DELETE,
     P.RELEASE_VIEW_ASSIGNED,
     P.RELEASE_ACCEPT,
     P.RELEASE_CREATE,

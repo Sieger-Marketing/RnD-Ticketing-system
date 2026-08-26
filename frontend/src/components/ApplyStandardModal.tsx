@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Field, FormError } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import { InlineAlert, Spinner } from "@/components/ui/primitives";
-import { useApplyStandard, useProductStandard } from "@/hooks/queries";
+import { useApplyStandard, useProductStandard, useReleases } from "@/hooks/queries";
 import type { ReleaseSummary, UUID } from "@/types/api";
 
 export function ApplyStandardModal({
@@ -35,6 +35,19 @@ export function ApplyStandardModal({
 }) {
   const standard = useProductStandard(open ? productId : null);
   const apply = useApplyStandard(projectId);
+
+  // What the project already has. Without this the dialog offers to create
+  // releases that exist, pre-ticked, and the only way to find out is to submit
+  // and be refused -- which is how "nothing was added" became the normal
+  // outcome of applying a standard to an imported project.
+  const existing = useReleases(open ? { project_id: projectId, page_size: 200 } : undefined);
+  const existingNames = useMemo(
+    () =>
+      new Set(
+        (existing.data?.items ?? []).map((r) => r.name.trim().toLowerCase()),
+      ),
+    [existing.data],
+  );
 
   const [variant, setVariant] = useState("standard");
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -59,9 +72,17 @@ export function ApplyStandardModal({
   const activeVariant = active?.variant;
   useEffect(() => {
     if (!active) return;
-    setChecked(Object.fromEntries(active.releases.map((r) => [r.id, r.is_default])));
+    setChecked(
+      Object.fromEntries(
+        active.releases.map((r) => [
+          r.id,
+          // Never pre-tick something that is already there.
+          r.is_default && !existingNames.has(r.name.trim().toLowerCase()),
+        ]),
+      ),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeVariant, open]);
+  }, [activeVariant, open, existingNames]);
 
   useEffect(() => {
     if (!open) {
@@ -169,7 +190,11 @@ export function ApplyStandardModal({
 
           <Field label="Releases to create">
             <ul className="space-y-2">
-              {active.releases.map((release) => (
+              {active.releases.map((release) => {
+                const alreadyThere = existingNames.has(
+                  release.name.trim().toLowerCase(),
+                );
+                return (
                 <li key={release.id}>
                   <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-ink-200 px-3 py-2 hover:bg-cream-50">
                     <input
@@ -192,6 +217,11 @@ export function ApplyStandardModal({
                         {release.alternative_name && (
                           <span className="text-ink-500"> or {release.alternative_name}</span>
                         )}
+                        {alreadyThere && (
+                          <span className="ml-2 rounded bg-ink-100 px-1.5 py-0.5 text-2xs font-medium text-ink-600">
+                            already on this project
+                          </span>
+                        )}
                       </span>
                       {release.condition && (
                         <span className="mt-0.5 flex items-start gap-1 text-xs text-ink-500">
@@ -202,7 +232,8 @@ export function ApplyStandardModal({
                     </span>
                   </label>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           </Field>
 
