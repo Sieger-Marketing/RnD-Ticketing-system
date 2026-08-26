@@ -23,6 +23,21 @@ from app.models.system import AppSetting
 # ---------------------------------------------------------------------------
 
 DEFAULT_SETTINGS: dict[str, tuple[str, Any, str]] = {
+    # -- notifications ----------------------------------------------------
+    "notifications.manager_copy_events": (
+        "notifications",
+        [
+            "release.assigned",
+            "release.completed",
+            "release.at_risk",
+            "project.completed",
+        ],
+        "Events that also notify everyone holding the Design Manager role, on "
+        "top of the person responsible. Project- and release-level events only "
+        "by default: copying task traffic across 218 releases would bury the "
+        "notices worth reading.",
+    ),
+
     # -- capacity (spec section 12) ---------------------------------------
     "capacity.thresholds": (
         "capacity",

@@ -90,8 +90,8 @@ def notify_many(db: Session, user_ids, **kwargs) -> int:
     return sent
 
 
-def notify_role(db: Session, db_role_name: str, **kwargs) -> int:
-    """Notify everyone holding a role -- used for manager/director escalations."""
+def role_user_ids(db: Session, db_role_name: str) -> list[uuid.UUID]:
+    """Active users holding a role. Empty when nobody does, which is not an error."""
     from app.models.user import Role, UserRole
 
     rows = db.execute(
@@ -100,7 +100,44 @@ def notify_role(db: Session, db_role_name: str, **kwargs) -> int:
         .join(Role, Role.id == UserRole.role_id)
         .where(Role.name == db_role_name, User.is_active.is_(True))
     ).all()
-    return notify_many(db, [r[0] for r in rows], **kwargs)
+    return [r[0] for r in rows]
+
+
+def notify_role(db: Session, db_role_name: str, **kwargs) -> int:
+    """Notify everyone holding a role -- used for manager/director escalations."""
+    return notify_many(db, role_user_ids(db, db_role_name), **kwargs)
+
+
+#: The role that runs the department and is copied on project-level events.
+DEPARTMENT_ROLE = "Design Manager"
+
+
+def notify_with_manager_copy(
+    db: Session, *, user_id: uuid.UUID | None, event_type: str, **kwargs
+) -> int:
+    """Tell whoever is responsible, and copy the people running the department.
+
+    A team lead owns their own project; the design manager owns the portfolio,
+    and finding out that a project closed by noticing it had gone quiet is not
+    a reporting line. So the manager is copied on the events that describe a
+    release or a project as a whole.
+
+    Which events those are is a setting rather than a constant, because the
+    right answer is a judgement about how much a manager wants to read, and
+    that changes with the size of the department. Task-level traffic is
+    deliberately not in the default: across 218 releases it would bury the four
+    notices that actually need reading.
+
+    One recipient set, so somebody who is both the lead and a manager is told
+    once rather than twice.
+    """
+    recipients: set[uuid.UUID | None] = {user_id}
+
+    copied = settings_service.get_setting(db, "notifications.manager_copy_events")
+    if event_type in (copied or []):
+        recipients.update(role_user_ids(db, DEPARTMENT_ROLE))
+
+    return notify_many(db, recipients, event_type=event_type, **kwargs)
 
 
 def unread_count(db: Session, user_id: uuid.UUID) -> int:

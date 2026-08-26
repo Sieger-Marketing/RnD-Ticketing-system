@@ -43,6 +43,7 @@ from app.services import (
     rollup_service,
     template_service,
 )
+from app.api.v1.projects import visible_projects
 from app.api.v1.tasks import task_summary
 
 router = APIRouter(prefix="/releases", tags=["releases"])
@@ -149,10 +150,20 @@ def create_release(
     payload: ReleaseCreate,
     request: Request,
     db: Session = Depends(get_db),
+    scope: AccessScope = Depends(get_scope),
     user: User = Depends(require_permission(P.RELEASE_CREATE)),
 ) -> ReleaseDetail:
-    project = db.get(Project, payload.project_id)
+    # Holding release.create says you may create releases, not that you may
+    # create them anywhere. Without this the permission reaches every project
+    # in the department, which is the wrong shape for a team lead who owns one.
+    # Someone with project.view_all is unaffected: everything is visible to
+    # them anyway.
+    project = db.execute(
+        visible_projects(scope).where(Project.id == payload.project_id)
+    ).scalar_one_or_none()
     if project is None:
+        # Hidden and non-existent both answer 404, so this cannot be used to
+        # discover which projects exist.
         raise NotFoundError("Project not found.")
 
     # Sequence numbers define the design sequence, so they are allocated

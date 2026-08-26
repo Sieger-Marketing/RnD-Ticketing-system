@@ -36,7 +36,7 @@ from app.services import audit_service, code_service, kpi, rollup_service
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-def _visible_projects(scope: AccessScope):
+def visible_projects(scope: AccessScope):
     """Restrict the project list to what the caller may see.
 
     A Director or Manager sees the department. Everyone else sees projects
@@ -93,7 +93,7 @@ def _counts(db: Session, project_ids: list[uuid.UUID]) -> dict[uuid.UUID, tuple[
 
 def _get_visible(db: Session, scope: AccessScope, project_id: uuid.UUID) -> Project:
     project = db.execute(
-        _visible_projects(scope).where(Project.id == project_id)
+        visible_projects(scope).where(Project.id == project_id)
     ).scalar_one_or_none()
     if project is None:
         # Existing-but-hidden and non-existent both return 404 so the endpoint
@@ -118,7 +118,7 @@ def list_projects(
     search: str | None = None,
     sort: str = Query("-created_at"),
 ) -> Page[ProjectSummary]:
-    stmt = _visible_projects(scope)
+    stmt = visible_projects(scope)
 
     if status:
         stmt = stmt.where(Project.status.in_(status))

@@ -160,7 +160,7 @@ def assign_team_lead(
             db, release, ReleaseStatus.ASSIGNED.value, actor=actor, context=context
         )
 
-    notification_service.notify(
+    notification_service.notify_with_manager_copy(
         db,
         user_id=lead.id,
         event_type=Event.RELEASE_ASSIGNED,
@@ -254,7 +254,7 @@ def complete(
         rollup_service.refresh_project(db, project, today)
         _maybe_complete_project(db, project, actor=actor, context=context, today=today)
 
-    notification_service.notify(
+    notification_service.notify_with_manager_copy(
         db,
         user_id=project.team_lead_id if project else None,
         event_type=Event.RELEASE_COMPLETED,
@@ -313,7 +313,7 @@ def _maybe_complete_project(
         note="All design releases completed",
         context=context,
     )
-    notification_service.notify(
+    notification_service.notify_with_manager_copy(
         db,
         user_id=project.team_lead_id,
         event_type="project.completed",
@@ -329,7 +329,7 @@ def flag_at_risk(db: Session, release: DesignRelease) -> None:
     if release.health == "GREEN" or release.team_lead_id is None:
         return
     reasons = "; ".join(r.get("message", "") for r in (release.health_reasons or []))
-    notification_service.notify(
+    notification_service.notify_with_manager_copy(
         db,
         user_id=release.team_lead_id,
         event_type=Event.RELEASE_AT_RISK,
