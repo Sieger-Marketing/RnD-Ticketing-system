@@ -218,12 +218,21 @@ _DESIGN_MANAGER = _DIRECTOR + [
     P.FILE_DELETE,
 ]
 
-#: Owns releases and the people executing them, but cannot create projects,
+#: Drives the projects assigned to them: builds out the design releases, staffs
+#: them, and runs the people executing them. Cannot create or edit projects,
 #: publish templates or change department-wide configuration.
+#:
+#: RELEASE_CREATE and RELEASE_ASSIGN_LEAD are bounded by visibility, not by the
+#: permission alone -- both endpoints filter to the projects and releases the
+#: caller can see, so a lead can build out the project they were given and no
+#: other. Without them a lead "driving" a project still needed the manager to
+#: add every release, which is not driving it.
 _TEAM_LEAD = [
     P.PROJECT_VIEW_ASSIGNED,
     P.RELEASE_VIEW_ASSIGNED,
     P.RELEASE_ACCEPT,
+    P.RELEASE_CREATE,
+    P.RELEASE_ASSIGN_LEAD,
     P.RELEASE_UPDATE,
     P.RELEASE_COMPLETE,
     P.TEMPLATE_VIEW,
