@@ -137,9 +137,12 @@ def apply_to_project(
     version = shared_version(db) if generate_tasks else None
     created: list[DesignRelease] = []
 
+    skipped: list[str] = []
+
     for row in chosen:
         # Re-applying a standard should not duplicate what is already there.
         if row.name.strip().lower() in taken:
+            skipped.append(row.name)
             continue
 
         next_sequence += 1
@@ -183,8 +186,13 @@ def apply_to_project(
         created.append(release)
 
     if not created:
+        # Name them. "Every selected release already exists" is true and
+        # useless: it does not say which, so the reader cannot tell whether
+        # they picked the wrong project, the wrong variant, or simply asked
+        # for work that is already there.
         raise ValidationError(
-            "Every selected release already exists on this project."
+            f"{project.code} already has "
+            f"{', '.join(sorted(skipped))}. Nothing was added."
         )
 
     rollup_service.refresh_project(db, project)

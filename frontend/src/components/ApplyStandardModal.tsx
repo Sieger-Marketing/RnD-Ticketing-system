@@ -47,10 +47,21 @@ export function ApplyStandardModal({
 
   // Every variant is a different list, so the ticks belong to the variant
   // rather than to the dialog: switching resets to that list's defaults.
+  //
+  // Keyed on the variant NAME, not on `active` itself. `active` is derived from
+  // query data, so a refetch -- a window regaining focus is enough -- hands
+  // back an equal object with a new identity, this effect re-runs, and every
+  // tick the user has made is silently reset to the defaults. Ticking an
+  // optional release and then glancing at another window was enough to lose
+  // it, and because the defaults all exist already the next Apply came back
+  // "Every selected release already exists on this project", which describes
+  // a selection the user never made.
+  const activeVariant = active?.variant;
   useEffect(() => {
     if (!active) return;
     setChecked(Object.fromEntries(active.releases.map((r) => [r.id, r.is_default])));
-  }, [active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeVariant, open]);
 
   useEffect(() => {
     if (!open) {
