@@ -371,6 +371,23 @@ def transition(
     today = today or date.today()
     current = task.status
 
+    # Leaving In Progress stops the clock. Finishing a task and leaving its
+    # timer running was previously possible from every route into this
+    # function, and the timer then ran until somebody noticed -- or until the
+    # overnight sweep closed it at midnight and attributed the evening to the
+    # task the person had already finished.
+    #
+    # The hours to the moment of the transition are banked as a normal entry,
+    # so "Completed" and "Stop timer" both end with the same thing recorded:
+    # the time actually worked. The difference between them is only whether the
+    # task is finished, which is what the person choosing between them means.
+    if current == TaskStatus.IN_PROGRESS.value and target != TaskStatus.IN_PROGRESS.value:
+        from app.services import time_service
+
+        running = time_service.running_timer(db, actor.id) if actor else None
+        if running is not None and running.task_id == task.id:
+            time_service.stop_timer(db, user=actor, entry_id=running.id)
+
     if current == target:
         return task
     if not can_transition(current, target):

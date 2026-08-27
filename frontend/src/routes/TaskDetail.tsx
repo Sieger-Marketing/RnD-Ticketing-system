@@ -6,7 +6,7 @@
  * on screen are exactly the moves the state machine will accept.
  */
 
-import { AlertTriangle, ArrowLeft, Link2, Play, Send, Square, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Link2, Play, Send, Square, Trash2, UserPlus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 
@@ -57,9 +57,7 @@ const NEEDS_DELAY_REASON: TaskStatus[] = ["Completed", "Submitted for Review"];
 
 /** Transitions worth a dedicated button, in the order a designer meets them. */
 const PRIMARY_ACTIONS: { status: TaskStatus; label: string; icon?: ReactNode }[] = [
-  { status: "In Progress", label: "Start work", icon: <Play className="h-3.5 w-3.5" /> },
   { status: "Blocked", label: "Raise blocker", icon: <AlertTriangle className="h-3.5 w-3.5" /> },
-  { status: "Completed", label: "Mark complete" },
 ];
 
 export default function TaskDetail() {
@@ -243,11 +241,74 @@ export default function TaskDetail() {
               </button>
             )}
 
+            {/* Starting work and stopping it are the same decision seen from
+                two sides, so they sit together and the clock follows the task.
+                Starting the timer is what moves the task to In Progress -- a
+                task marked started but never timed reports zero effort, which
+                is worse than one nobody started. */}
+            {isMine && can(P.timeLogOwn) && !timerOnThisTask && allowed.has("In Progress") && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => startTimer.mutate({ task_id: t.id })}
+                disabled={startTimer.isPending || Boolean(running.data)}
+                title={
+                  running.data
+                    ? `A timer is already running on ${running.data.task_code}`
+                    : undefined
+                }
+              >
+                {startTimer.isPending ? <Spinner /> : <Play className="h-3.5 w-3.5" />}
+                Start work
+              </button>
+            )}
+
+            {/* Working: the only two ways out. Completed banks the hours and
+                stamps the end date; Stop keeps the task open to come back to. */}
+            {timerOnThisTask && (
+              <>
+                {allowed.has("Completed") && (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => requestMove("Completed")}
+                    disabled={move.isPending}
+                  >
+                    {move.isPending ? <Spinner /> : <Check className="h-3.5 w-3.5" />}
+                    Completed
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => stopTimer.mutate()}
+                  disabled={stopTimer.isPending}
+                  title="Bank the hours so far and pick this up again later"
+                >
+                  {stopTimer.isPending ? <Spinner /> : <Square className="h-3.5 w-3.5" />}
+                  Stop timer
+                </button>
+              </>
+            )}
+
+            {/* Completing without a running timer stays available: not every
+                task is timed, and one may have been stopped earlier. */}
+            {!timerOnThisTask && allowed.has("Completed") && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => requestMove("Completed")}
+                disabled={move.isPending}
+              >
+                Mark complete
+              </button>
+            )}
+
             {PRIMARY_ACTIONS.filter((a) => allowed.has(a.status)).map((action) => (
               <button
                 key={action.status}
                 type="button"
-                className={action.status === "Blocked" ? "btn-secondary" : "btn-primary"}
+                className="btn-secondary"
                 onClick={() => requestMove(action.status)}
                 disabled={move.isPending}
               >
