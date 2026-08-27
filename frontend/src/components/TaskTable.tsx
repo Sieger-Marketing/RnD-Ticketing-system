@@ -185,20 +185,22 @@ export function TaskTable({
       key: "project",
       header: "Project",
       mobile: "meta",
-      // Name first: a code is precise but nobody holds PRJ-0124 in their head.
-      // The code stays underneath, because it is still the handle people quote
-      // to each other and search by.
+      // The name, and only the name: a code is precise but nobody holds
+      // PRJ-0124 in their head, and showing both put the thing nobody reads
+      // directly under the thing they do. The code is still on the task page
+      // and is still what search matches, so nothing is lost by not printing
+      // it on every row.
+      //
+      // Falls back to the code only when the name is genuinely missing, which
+      // is better than an empty cell -- and is what shows until an API that
+      // predates project_name is restarted.
       cell: (t) =>
         t.project_name || t.project_code ? (
-          <span className="block min-w-0">
-            <span className="block truncate text-xs text-ink-800">
-              {t.project_name ?? t.project_code}
-            </span>
-            {t.project_name && t.project_code && (
-              <span className="block truncate font-mono text-2xs text-ink-400">
-                {t.project_code}
-              </span>
-            )}
+          <span
+            className="block truncate text-xs text-ink-800"
+            title={t.project_code ?? undefined}
+          >
+            {t.project_name ?? t.project_code}
           </span>
         ) : (
           <span className="text-xs text-ink-400">{DASH}</span>
