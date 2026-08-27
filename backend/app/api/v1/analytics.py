@@ -515,8 +515,23 @@ def designer_dashboard(
     return {
         "kpis": analytics_service.designer_metrics(db, target),
         "todays_tasks": _tasks(Task.planned_end == today, Task.status.in_(_OPEN_TASKS)),
+        # Everything ahead, not just the next seven days. The window used to
+        # stop at week_end, so a task due in a fortnight belonged to no list on
+        # this page and its owner could not see it anywhere.
         "upcoming_tasks": _tasks(
+            Task.planned_end >= today + timedelta(days=1),
+            Task.status.in_(_OPEN_TASKS),
+        ),
+        "due_this_week": _tasks(
             Task.planned_end.between(today + timedelta(days=1), week_end),
+            Task.status.in_(_OPEN_TASKS),
+        ),
+        # Assigned, open, and carrying no date at all. Every other list here is
+        # keyed on planned_end, so this work was invisible to the person who
+        # owns it -- 718 of the 808 open tasks when this was added, which is
+        # not an edge case, it is most of the department's work.
+        "unscheduled_tasks": _tasks(
+            Task.planned_end.is_(None),
             Task.status.in_(_OPEN_TASKS),
         ),
         "overdue_tasks": _tasks(

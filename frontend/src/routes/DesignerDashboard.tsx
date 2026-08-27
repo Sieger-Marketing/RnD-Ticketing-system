@@ -24,6 +24,7 @@ interface DesignerDashboardData {
   kpis: DesignerMetrics;
   todays_tasks: TaskSummary[];
   upcoming_tasks: TaskSummary[];
+  unscheduled_tasks?: TaskSummary[];
   overdue_tasks: TaskSummary[];
   in_review: TaskSummary[];
   revision_required: TaskSummary[];
@@ -62,6 +63,8 @@ export default function DesignerDashboard() {
 
   const k = data.kpis;
   const score = k.performance_score.score;
+  // Absent until the API is restarted; the page must not die waiting for it.
+  const unscheduled = data.unscheduled_tasks ?? [];
 
   return (
     <>
@@ -161,12 +164,34 @@ export default function DesignerDashboard() {
             />
           </Card>
 
-          <Card title={`Upcoming this week (${data.upcoming_tasks.length})`} bodyClassName="">
+          <Card title={`Upcoming (${data.upcoming_tasks.length})`} bodyClassName="">
             <TaskTable
               tasks={data.upcoming_tasks}
               columns={["code", "name", "status", "due", "priority", "timer"]}
-              emptyTitle="Nothing scheduled this week"
+              emptyTitle="Nothing scheduled ahead"
             />
+          </Card>
+
+          {/* Work that is yours and open but carries no date. Every other list
+              here is keyed on the due date, so without this the task exists,
+              is assigned, and appears nowhere its owner would look. */}
+          <Card
+            title={`Unscheduled (${unscheduled.length})`}
+            bodyClassName=""
+          >
+            <TaskTable
+              tasks={unscheduled}
+              columns={["code", "name", "project", "status", "priority", "timer"]}
+              emptyTitle="Everything you have is scheduled"
+              emptyDescription="Tasks with no due date would appear here."
+            />
+            {unscheduled.length > 0 && (
+              <p className="border-t border-ink-100 px-4 py-2 text-2xs text-ink-500">
+                These have no due date, so they never appear in Due today,
+                Upcoming or Overdue. Ask your team lead for a date, or start on
+                one now.
+              </p>
+            )}
           </Card>
         </div>
 
