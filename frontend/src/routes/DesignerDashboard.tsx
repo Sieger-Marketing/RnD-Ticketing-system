@@ -130,7 +130,7 @@ export default function DesignerDashboard() {
             >
               <TaskTable
                 tasks={data.revision_required}
-                columns={["code", "name", "project", "due", "hours"]}
+                columns={["code", "name", "project", "due", "hours", "timer"]}
                 emptyTitle="Nothing to rework"
               />
             </Card>
@@ -147,7 +147,7 @@ export default function DesignerDashboard() {
             >
               <TaskTable
                 tasks={data.overdue_tasks}
-                columns={["code", "name", "status", "due", "delay", "progress"]}
+                columns={["code", "name", "status", "due", "delay", "progress", "timer"]}
               />
             </Card>
           )}
@@ -155,7 +155,7 @@ export default function DesignerDashboard() {
           <Card title={`Due today (${data.todays_tasks.length})`} bodyClassName="">
             <TaskTable
               tasks={data.todays_tasks}
-              columns={["code", "name", "status", "priority", "progress"]}
+              columns={["code", "name", "status", "priority", "progress", "timer"]}
               emptyTitle="Nothing due today"
               emptyDescription="Your next deadlines are in the upcoming list."
             />
@@ -164,7 +164,7 @@ export default function DesignerDashboard() {
           <Card title={`Upcoming this week (${data.upcoming_tasks.length})`} bodyClassName="">
             <TaskTable
               tasks={data.upcoming_tasks}
-              columns={["code", "name", "status", "due", "priority"]}
+              columns={["code", "name", "status", "due", "priority", "timer"]}
               emptyTitle="Nothing scheduled this week"
             />
           </Card>

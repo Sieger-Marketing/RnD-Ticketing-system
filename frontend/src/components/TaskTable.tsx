@@ -11,16 +11,23 @@
  */
 
 import clsx from "clsx";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Play, Square } from "lucide-react";
 
 import {
   Avatar,
   EmptyState,
   PriorityLabel,
   ProgressBar,
+  Spinner,
   StatusBadge,
 } from "@/components/ui/primitives";
 import { ResponsiveTable, type Column } from "@/components/ui/ResponsiveTable";
+import {
+  useRunningTimer,
+  useStartTimer,
+  useStopTimer,
+} from "@/hooks/queries";
+import { P, useAuth } from "@/store/auth";
 import { DASH, hours, shortDate } from "@/lib/format";
 import type { TaskSummary } from "@/types/api";
 
@@ -34,7 +41,8 @@ export type TaskColumn =
   | "due"
   | "progress"
   | "hours"
-  | "delay";
+  | "delay"
+  | "timer";
 
 const DEFAULT_COLUMNS: TaskColumn[] = [
   "code",
@@ -44,6 +52,72 @@ const DEFAULT_COLUMNS: TaskColumn[] = [
   "due",
   "progress",
 ];
+
+
+/**
+ * Start or stop the clock without leaving the list.
+ *
+ * A designer lives on this list, and until now starting work meant opening the
+ * task first -- which is the difference between a timer people use and one they
+ * mean to. The running-timer query is shared, so a table of twenty rows still
+ * asks once.
+ *
+ * Only ever offered on your own tasks: the API refuses anybody else's, so a
+ * button here would produce nothing but an error.
+ */
+function TimerCell({ task }: { task: TaskSummary }) {
+  const { can, user } = useAuth();
+  const running = useRunningTimer();
+  const start = useStartTimer();
+  const stop = useStopTimer();
+
+  if (!can(P.timeLogOwn) || task.assigned_to_id !== user?.id) return null;
+  if (DONE_STATUSES.has(task.status)) return null;
+
+  const onThisTask = running.data?.task_id === task.id;
+  const busy = start.isPending || stop.isPending;
+
+  if (onThisTask) {
+    return (
+      <button
+        type="button"
+        className="btn-danger px-2 py-0.5 text-2xs"
+        onClick={(event) => {
+          event.stopPropagation();
+          stop.mutate();
+        }}
+        disabled={busy}
+      >
+        {busy ? <Spinner className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+        Stop
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn-secondary px-2 py-0.5 text-2xs"
+      onClick={(event) => {
+        // The row is a link to the task; starting the clock is not navigation.
+        event.stopPropagation();
+        start.mutate({ task_id: task.id });
+      }}
+      disabled={busy || Boolean(running.data)}
+      title={
+        running.data
+          ? `A timer is already running on ${running.data.task_code}`
+          : "Start work and the clock together"
+      }
+    >
+      {busy ? <Spinner className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+      Start
+    </button>
+  );
+}
+
+//: Work that is finished has nothing left to time.
+const DONE_STATUSES = new Set(["Completed", "Approved", "Cancelled"]);
 
 export function TaskTable({
   tasks,
@@ -151,6 +225,13 @@ export function TaskTable({
         />
       ),
     },
+    timer: {
+      key: "timer",
+      header: "",
+      align: "right",
+      mobile: "field",
+      cell: (t) => <TimerCell task={t} />,
+    },
     hours: {
       key: "hours",
       header: "Est / Act",
@@ -186,7 +267,14 @@ export function TaskTable({
   };
 
   const ordered = (
-    ["code", "name", "project", "assignee", "status", "priority", "due", "progress", "hours", "delay"] as TaskColumn[]
+    // The order columns appear in, regardless of the order they were asked
+    // for. A key missing from this list is silently dropped, so anything added
+    // to TaskColumn has to be added here too. "timer" sits last: it is an
+    // action, not data, and belongs at the end of the row.
+    [
+      "code", "name", "project", "assignee", "status", "priority",
+      "due", "progress", "hours", "delay", "timer",
+    ] as TaskColumn[]
   )
     .filter((key) => wanted.has(key))
     .map((key) => all[key]);
