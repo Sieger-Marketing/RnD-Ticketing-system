@@ -124,6 +124,68 @@ def start_timer(
     return entry
 
 
+def close_stale_timers(db: Session, today: date | None = None) -> list[TimeEntry]:
+    """Close timers still running from an earlier day.
+
+    Work that spans days is two days of work, and the timer cannot represent
+    that: entry_date is stamped when it starts, so a timer left running
+    overnight books every hour to the day it began and leaves the day it
+    actually ended showing nothing. Stopping it the next afternoon recorded 31
+    hours, capped to 16, all of it on Tuesday, with Thursday empty.
+
+    So a timer that crosses midnight is closed at the end of the day it
+    started, and the designer starts a fresh one for the new day. The closing
+    time is a guess and is labelled as one -- what it is not is a silent 16
+    hours on the wrong date, which is the thing that quietly poisons
+    utilisation, efficiency and every average the person appears in.
+
+    Deliberately does not open a replacement. The system knows the timer was
+    left running; it does not know whether the work continued, and inventing
+    hours for a day nobody worked is the failure this exists to prevent.
+    """
+    today = today or date.today()
+
+    stale = db.execute(
+        select(TimeEntry).where(
+            TimeEntry.is_running.is_(True),
+            TimeEntry.entry_date < today,
+        )
+    ).scalars().all()
+
+    closed: list[TimeEntry] = []
+    for entry in stale:
+        started = entry.started_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=UTC)
+
+        # The end of the day it started, or the cap, whichever comes first.
+        end_of_day = datetime.combine(
+            entry.entry_date, datetime.max.time(), tzinfo=UTC
+        )
+        ended = min(end_of_day, started + timedelta(hours=MAX_ENTRY_HOURS))
+
+        hours = round((ended - started).total_seconds() / 3600, 2)
+        if hours <= 0:
+            hours = 0.01
+
+        entry.ended_at = ended
+        entry.hours = hours
+        entry.is_running = False
+        entry.description = (
+            (entry.description or "")
+            + " [auto-closed: left running overnight, check these hours]"
+        ).strip()
+        closed.append(entry)
+
+        task = db.get(Task, entry.task_id)
+        if task is not None:
+            rollup_service.refresh_chain(db, task)
+
+    if closed:
+        db.flush()
+    return closed
+
+
 def stop_timer(db: Session, *, user: User, entry_id: uuid.UUID | None = None) -> TimeEntry:
     entry = (
         db.get(TimeEntry, entry_id) if entry_id else running_timer(db, user.id)

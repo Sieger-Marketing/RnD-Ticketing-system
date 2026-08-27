@@ -28,12 +28,15 @@ sys.path.insert(0, str(BACKEND))
 os.chdir(BACKEND)
 
 from app.db.session import SessionLocal  # noqa: E402
-from app.services import health_service  # noqa: E402
+from app.services import health_service, time_service  # noqa: E402
 
 
 def main() -> int:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with SessionLocal() as db:
+        # Before the ratings, because a timer left running overnight is still
+        # counting and its hours feed the effort figures the ratings read.
+        closed = time_service.close_stale_timers(db)
         counts = health_service.sweep_delays(db)
         db.commit()
 
@@ -44,6 +47,11 @@ def main() -> int:
         f"re-rated {counts['releases_rerated']} release(s) and "
         f"{counts['projects_rerated']} project(s)"
     )
+    if closed:
+        print(
+            f"[{stamp}] closed {len(closed)} timer(s) left running overnight: "
+            + ", ".join(f"{e.code} {e.hours}h" for e in closed)
+        )
     return 0
 
 
