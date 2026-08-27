@@ -351,6 +351,24 @@ export function useAssignTask(id: UUID) {
   });
 }
 
+/**
+ * Assign a task whose id is only known at the moment of the click.
+ *
+ * useAssignTask binds one id at hook time, which suits a detail screen and is
+ * useless in a list: hooks cannot be called per row. Same endpoint, the id
+ * travels with the mutation instead.
+ */
+export function useAssignTaskById() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ taskId, assignedToId }: { taskId: UUID; assignedToId: UUID | null }) =>
+      post<TaskDetail>(`/api/tasks/${taskId}/assign`, {
+        assigned_to_id: assignedToId,
+      }),
+    onSuccess: () => invalidateWorkflow(qc),
+  });
+}
+
 export function useEstimateTask(id: UUID) {
   const qc = useQueryClient();
   return useMutation({

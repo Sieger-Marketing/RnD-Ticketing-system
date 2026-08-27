@@ -69,6 +69,8 @@ def task_summary(task: Task, today: date | None = None) -> TaskSummary:
         code=task.code,
         project_id=task.project_id,
         project_code=task.project.code if task.project else None,
+        # Same relationship the code comes from, so this costs no extra query.
+        project_name=task.project.name if task.project else None,
         release_id=task.release_id,
         release_code=task.release.code if task.release else None,
         name=task.name,

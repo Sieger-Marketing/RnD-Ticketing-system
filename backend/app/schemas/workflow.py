@@ -474,6 +474,11 @@ class TaskSummary(ORMModel):
     code: str
     project_id: uuid.UUID
     project_code: str | None = None
+    #: The readable name. A task list that identifies its projects as PRJ-0124
+    #: asks the reader to hold a code table in their head; "Kumaran Medical
+    #: Centre" is the thing they actually know it by. The code stays for the
+    #: cases where it is the more precise handle.
+    project_name: str | None = None
     release_id: uuid.UUID
     release_code: str | None = None
     name: str

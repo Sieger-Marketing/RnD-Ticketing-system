@@ -403,6 +403,7 @@ export interface TaskSummary {
   code: string;
   project_id: UUID;
   project_code: string | null;
+  project_name: string | null;
   release_id: UUID;
   release_code: string | null;
   name: string;

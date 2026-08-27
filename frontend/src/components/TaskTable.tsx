@@ -11,7 +11,12 @@
  */
 
 import clsx from "clsx";
-import { AlertTriangle, Play, Square } from "lucide-react";
+import { AlertTriangle, Play, Square, UserPlus } from "lucide-react";
+import { useState } from "react";
+
+import { AssigneePicker } from "@/components/AssigneePicker";
+import { FormError } from "@/components/ui/form";
+import { Modal } from "@/components/ui/Modal";
 
 import {
   Avatar,
@@ -23,6 +28,7 @@ import {
 } from "@/components/ui/primitives";
 import { ResponsiveTable, type Column } from "@/components/ui/ResponsiveTable";
 import {
+  useAssignTaskById,
   useRunningTimer,
   useStartTimer,
   useStopTimer,
@@ -134,6 +140,15 @@ export function TaskTable({
   emptyDescription?: string;
   maxRows?: number;
 }) {
+  // task.assign specifically, not "assign or reassign": the picker loads the
+  // assignment board, which requires task.assign on its own. Gating on either
+  // would show the control to somebody whose dialog then 403s on open.
+  const canAssign = useAuth((s) => s.can)(P.taskAssign);
+
+  const [assigning, setAssigning] = useState<TaskSummary | null>(null);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+  const assign = useAssignTaskById();
+
   const rows = maxRows ? tasks.slice(0, maxRows) : tasks;
   const wanted = new Set(columns);
 
@@ -170,21 +185,66 @@ export function TaskTable({
       key: "project",
       header: "Project",
       mobile: "meta",
-      cell: (t) => <span className="text-xs text-ink-600">{t.project_code ?? DASH}</span>,
+      // Name first: a code is precise but nobody holds PRJ-0124 in their head.
+      // The code stays underneath, because it is still the handle people quote
+      // to each other and search by.
+      cell: (t) =>
+        t.project_name || t.project_code ? (
+          <span className="block min-w-0">
+            <span className="block truncate text-xs text-ink-800">
+              {t.project_name ?? t.project_code}
+            </span>
+            {t.project_name && t.project_code && (
+              <span className="block truncate font-mono text-2xs text-ink-400">
+                {t.project_code}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-xs text-ink-400">{DASH}</span>
+        ),
     },
     assignee: {
       key: "assignee",
       header: "Assignee",
       mobile: "field",
-      cell: (t) =>
-        t.assigned_to_name ? (
-          <span className="flex items-center gap-1.5">
+      // Assignable in place for anyone who may assign. Going to the task just
+      // to set an owner meant a lead handing out a morning's work made a round
+      // trip per task, which is where the unassigned rows in a long list come
+      // from.
+      cell: (t) => {
+        const label = t.assigned_to_name ? (
+          <span className="flex min-w-0 items-center gap-1.5">
             <Avatar name={t.assigned_to_name} />
             <span className="truncate text-xs">{t.assigned_to_name}</span>
           </span>
         ) : (
           <span className="text-xs text-ink-400">Unassigned</span>
-        ),
+        );
+
+        if (!canAssign) return label;
+
+        return (
+          <button
+            type="button"
+            className="group flex min-w-0 items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-ink-50"
+            onClick={(event) => {
+              // The row is a link to the task; assigning is not navigation.
+              event.stopPropagation();
+              assign.reset();
+              // Seed from this row, not from whatever was picked last time --
+              // otherwise opening the dialog on a second task pre-selects the
+              // person just assigned to the first.
+              setPickedId(t.assigned_to_id);
+              setAssigning(t);
+            }}
+            title={t.assigned_to_name ? "Reassign this task" : "Assign this task"}
+          >
+            {label}
+            <UserPlus className="h-3 w-3 shrink-0 text-ink-300 group-hover:text-signal-700" />
+          </button>
+        );
+      },
     },
     status: {
       key: "status",
@@ -280,20 +340,68 @@ export function TaskTable({
     .map((key) => all[key]);
 
   return (
-    <ResponsiveTable
-      rows={rows}
-      columns={ordered}
-      rowKey={(t) => t.id}
-      onRowClick={onSelect}
-      minWidth="44rem"
-      empty={<EmptyState title={emptyTitle} description={emptyDescription} />}
-      footer={
-        maxRows && tasks.length > maxRows ? (
-          <p className="border-t border-ink-100 px-3 py-2 text-2xs text-ink-500">
-            Showing {maxRows} of {tasks.length}
-          </p>
-        ) : undefined
-      }
-    />
+    <>
+      <ResponsiveTable
+        rows={rows}
+        columns={ordered}
+        rowKey={(t) => t.id}
+        onRowClick={onSelect}
+        minWidth="44rem"
+        empty={<EmptyState title={emptyTitle} description={emptyDescription} />}
+        footer={
+          maxRows && tasks.length > maxRows ? (
+            <p className="border-t border-ink-100 px-3 py-2 text-2xs text-ink-500">
+              Showing {maxRows} of {tasks.length}
+            </p>
+          ) : undefined
+        }
+      />
+
+      {assigning && (
+        <Modal
+          open
+          onClose={() => setAssigning(null)}
+          title={`Assign ${assigning.code}`}
+          description={assigning.name}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setAssigning(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={assign.isPending}
+                onClick={() =>
+                  assign.mutate(
+                    { taskId: assigning.id, assignedToId: pickedId },
+                    { onSuccess: () => setAssigning(null) },
+                  )
+                }
+              >
+                {assign.isPending && <Spinner />}
+                {pickedId ? "Assign" : "Leave unassigned"}
+              </button>
+            </>
+          }
+        >
+          <div className="space-y-3">
+            <FormError error={assign.error} />
+            {/* No requiredSkillId: the board reads the requirement and the
+                window off the task itself when given task_id. */}
+            <AssigneePicker
+              taskId={assigning.id}
+              requiredSkillId={null}
+              selectedId={pickedId}
+              onSelect={setPickedId}
+            />
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
