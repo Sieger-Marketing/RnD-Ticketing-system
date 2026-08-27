@@ -237,7 +237,12 @@ def assign(
     if assignee is not None and previous_id == assignee.id:
         return task
 
-    task.assigned_to_id = assignee.id if assignee else None
+    # Set the relationship, not just the foreign key. The relationship was
+    # already loaded when the task was fetched, so writing the id alone leaves
+    # it holding the previous value -- and the response built straight
+    # afterwards reported the assignee as null while a later read showed the
+    # right name. Assigning through the relationship keeps both in step.
+    task.assigned_to = assignee
 
     if assignee is not None:
         task.assigned_at = datetime.now(UTC)
