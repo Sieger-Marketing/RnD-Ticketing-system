@@ -102,11 +102,24 @@ def _visible(scope: AccessScope):
     user_id = scope.user.id
     if P.TASK_VIEW_TEAM in scope.permissions:
         report_ids = [u.id for u in scope.user.direct_reports] + [user_id]
+        # Leading the project or the release is enough to see the work inside
+        # it. Without this a lead could open a project they own, open a release
+        # on it, and then be told its tasks belong to another team -- the same
+        # contradiction releases had, one level down. It bites hardest exactly
+        # where reporting lines are thin: with no direct reports, the first
+        # clause matches nothing and a lead sees only tasks stamped with their
+        # own id.
+        led_projects = select(Project.id).where(Project.team_lead_id == user_id)
+        led_releases = select(DesignRelease.id).where(
+            DesignRelease.team_lead_id == user_id
+        )
         return stmt.where(
             or_(
                 Task.assigned_to_id.in_(report_ids),
                 Task.team_lead_id == user_id,
                 Task.created_by_id == user_id,
+                Task.project_id.in_(led_projects),
+                Task.release_id.in_(led_releases),
             )
         )
     return stmt.where(
