@@ -29,6 +29,10 @@ class P:
     RELEASE_CREATE = "release.create"
     RELEASE_UPDATE = "release.update"
     RELEASE_ASSIGN_LEAD = "release.assign_lead"
+    #: Permanent removal of a release and everything under it. Separate from
+    #: RELEASE_UPDATE, which cancels: cancelling is a status a Team Lead owns,
+    #: deleting destroys other people's logged hours.
+    RELEASE_DELETE = "release.delete"
     RELEASE_ACCEPT = "release.accept"
     RELEASE_COMPLETE = "release.complete"
     #: Completing a release that still has open mandatory tasks.
@@ -100,12 +104,19 @@ PERMISSION_CATALOG: dict[str, tuple[str, str]] = {
     P.PROJECT_VIEW_ASSIGNED: ("projects", "View projects the user is involved in"),
     P.PROJECT_CREATE: ("projects", "Create a project"),
     P.PROJECT_UPDATE: ("projects", "Edit project details"),
-    P.PROJECT_DELETE: ("projects", "Delete or cancel a project"),
+    P.PROJECT_DELETE: (
+        "projects",
+        "Permanently delete a project, with its releases, tasks and logged time",
+    ),
     P.RELEASE_VIEW_ALL: ("releases", "View every design release"),
     P.RELEASE_VIEW_ASSIGNED: ("releases", "View releases assigned to the user"),
     P.RELEASE_CREATE: ("releases", "Create a design release"),
     P.RELEASE_UPDATE: ("releases", "Edit a design release"),
     P.RELEASE_ASSIGN_LEAD: ("releases", "Assign a Team Lead to a release"),
+    P.RELEASE_DELETE: (
+        "releases",
+        "Permanently delete a release, with its tasks and logged time",
+    ),
     P.RELEASE_ACCEPT: ("releases", "Accept an assigned release"),
     P.RELEASE_COMPLETE: ("releases", "Mark a release complete"),
     P.RELEASE_OVERRIDE_COMPLETION: (
@@ -122,7 +133,10 @@ PERMISSION_CATALOG: dict[str, tuple[str, str]] = {
     P.TASK_VIEW_OWN: ("tasks", "View tasks assigned to the user"),
     P.TASK_CREATE: ("tasks", "Add a task to a release"),
     P.TASK_UPDATE: ("tasks", "Edit task details"),
-    P.TASK_DELETE: ("tasks", "Remove a task"),
+    P.TASK_DELETE: (
+        "tasks",
+        "Permanently delete a task, with its time entries, reviews and revisions",
+    ),
     P.TASK_ASSIGN: ("tasks", "Assign a task to a designer"),
     P.TASK_REASSIGN: ("tasks", "Move a task between designers"),
     P.TASK_ESTIMATE: ("tasks", "Set or revise estimated effort"),
@@ -191,6 +205,7 @@ _DESIGN_MANAGER = _DIRECTOR + [
     P.PROJECT_DELETE,
     P.RELEASE_CREATE,
     P.RELEASE_UPDATE,
+    P.RELEASE_DELETE,
     P.RELEASE_ASSIGN_LEAD,
     P.RELEASE_COMPLETE,
     P.RELEASE_OVERRIDE_COMPLETION,
@@ -229,13 +244,27 @@ _DESIGN_MANAGER = _DIRECTOR + [
 #: add every release, which is not driving it.
 _TEAM_LEAD = [
     P.PROJECT_VIEW_ASSIGNED,
-    # Edit and cancel the projects they lead. Both are bounded by
-    # visible_projects, so this reaches the projects handed to them and no
-    # others, and "delete" is a soft cancel -- the row, its releases, its tasks
-    # and its history all survive, which is the only reason it is safe to hand
-    # to somebody other than the manager.
+    # Start a project as well as run one. A Team Lead is often the first person
+    # to hear about a job, and making them wait for a manager to type it in was
+    # the step where work got done before it existed in the system. Safe to
+    # hand over because visible_projects counts created_by_id, so a lead sees
+    # what they created without being given sight of the whole department.
+    P.PROJECT_CREATE,
+    # Edit the projects they lead, bounded by visible_projects so this reaches
+    # the projects handed to them and no others.
+    #
+    # Deliberately NOT project.delete, and not release.delete either. Deleting
+    # is permanent and cascades: a project takes its releases, its tasks and
+    # every hour anybody logged against them. A Team Lead can still cancel
+    # either one -- status Cancelled, via PATCH /projects/{id} or
+    # POST /releases/{id}/status -- which removes it from the working view
+    # while leaving the history the KPIs are computed from intact.
+    #
+    # task.delete stays: one task is a blast radius somebody who runs the work
+    # day to day can reasonably be trusted with, and it is the one people
+    # actually need, because a mistyped task is added and noticed in the same
+    # afternoon.
     P.PROJECT_UPDATE,
-    P.PROJECT_DELETE,
     P.RELEASE_VIEW_ASSIGNED,
     P.RELEASE_ACCEPT,
     P.RELEASE_CREATE,

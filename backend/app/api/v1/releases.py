@@ -37,6 +37,7 @@ from app.schemas.workflow import (
 from app.services import (
     audit_service,
     code_service,
+    deletion_service,
     kpi,
     release_service,
     schedule_service,
@@ -499,24 +500,46 @@ def release_tasks(
     return [task_summary(t) for t in rows]
 
 
+@router.get("/{release_id}/deletion-impact")
+def release_deletion_impact(
+    release_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    scope: AccessScope = Depends(get_scope),
+    _: User = Depends(require_permission(P.RELEASE_DELETE)),
+) -> dict:
+    """What deleting this release would destroy. Read-only."""
+    return deletion_service.release_impact(db, _get_visible(db, scope, release_id))
+
+
 @router.delete("/{release_id}", response_model=Message)
-def cancel_release(
+def delete_release(
     release_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_db),
     scope: AccessScope = Depends(get_scope),
-    user: User = Depends(require_permission(P.RELEASE_UPDATE)),
+    user: User = Depends(require_permission(P.RELEASE_DELETE)),
 ) -> Message:
+    """Permanently delete a release and its tasks.
+
+    Gated on release.delete rather than release.update, which is what this
+    used to require. Editing a release and destroying every hour logged
+    against it are not the same authority, and a Team Lead holds the first
+    but not the second -- they cancel instead, via POST /{id}/status.
+
+    The project's roll-ups are recomputed afterwards, since part of its hours
+    and completion belonged to this release.
+    """
     release = _get_visible(db, scope, release_id)
-    release_service.transition(
-        db,
-        release,
-        ReleaseStatus.CANCELLED.value,
-        actor=user,
-        note="Release cancelled",
-        context=client_context(request),
+    code = release.code
+    impact = deletion_service.delete_release(
+        db, release, actor=user, context=client_context(request)
     )
-    return Message(message=f"Release {release.code} cancelled.")
+    return Message(
+        message=(
+            f"Release {code} deleted permanently, with {impact['tasks']} tasks "
+            f"and {impact['logged_hours']}h of logged time."
+        )
+    )
 
 
 def _detail(db: Session, release: DesignRelease) -> ReleaseDetail:

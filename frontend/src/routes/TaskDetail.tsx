@@ -8,7 +8,7 @@
 
 import { AlertTriangle, ArrowLeft, Check, Link2, Play, Send, Square, Trash2, UserPlus } from "lucide-react";
 import { useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { AssigneePicker } from "@/components/AssigneePicker";
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
@@ -27,9 +27,11 @@ import {
   StatusBadge,
   toneFor,
 } from "@/components/ui/primitives";
+import { DeleteEntityDialog } from "@/components/DeleteEntityDialog";
 import {
   useAssignTask,
   useDelayReasons,
+  useDeleteTask,
   useEstimateTask,
   useLogTime,
   useMoveTask,
@@ -39,6 +41,7 @@ import {
   useStopTimer,
   useSubmitForReview,
   useTask,
+  useTaskDeletionImpact,
   useTimeEntries,
 } from "@/hooks/queries";
 import { DASH, dateTime, durationHours, hours, localToday, percent, shortDate, variance } from "@/lib/format";
@@ -62,6 +65,10 @@ const PRIMARY_ACTIONS: { status: TaskStatus; label: string; icon?: ReactNode }[]
 
 export default function TaskDetail() {
   const { taskId = "" } = useParams<{ taskId: string }>();
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+  const deletionImpact = useTaskDeletionImpact(taskId, deleting);
+  const deleteTask = useDeleteTask();
   const { can, user } = useAuth();
 
   const [assigning, setAssigning] = useState(false);
@@ -329,6 +336,24 @@ export default function TaskDetail() {
               >
                 <Send className="h-4 w-4" />
                 Submit for review
+              </button>
+            )}
+
+            {/* Team Leads keep this one: a single task is a blast radius
+                somebody running the work can be trusted with, and a mistyped
+                task is usually spotted the same afternoon. */}
+            {can(P.taskDelete) && (
+              <button
+                type="button"
+                className="btn-ghost text-rag-red"
+                onClick={() => {
+                  deleteTask.reset();
+                  setDeleting(true);
+                }}
+                title="Permanently delete this task and its logged time"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
               </button>
             )}
           </>
@@ -955,6 +980,26 @@ export default function TaskDetail() {
           </Field>
         </div>
       </Modal>
+
+      <DeleteEntityDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        entityLabel="task"
+        code={t.code}
+        name={t.name}
+        impact={deletionImpact.data}
+        impactLoading={deletionImpact.isLoading}
+        isPending={deleteTask.isPending}
+        error={deleteTask.error}
+        onConfirm={() =>
+          deleteTask.mutate(taskId, {
+            onSuccess: () => {
+              setDeleting(false);
+              navigate(`/releases/${t.release_id}`, { replace: true });
+            },
+          })
+        }
+      />
     </>
   );
 }

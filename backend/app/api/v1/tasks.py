@@ -47,6 +47,7 @@ from app.schemas.workflow import (
 from app.services import (
     audit_service,
     code_service,
+    deletion_service,
     kpi,
     rollup_service,
     schedule_service,
@@ -608,23 +609,41 @@ def remove_dependency(
     return Message(message="Dependency removed.")
 
 
+@router.get("/{task_id}/deletion-impact")
+def task_deletion_impact(
+    task_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    scope: AccessScope = Depends(get_scope),
+    _: User = Depends(require_permission(P.TASK_DELETE)),
+) -> dict:
+    """What deleting this task would destroy. Read-only."""
+    return deletion_service.task_impact(db, _get_visible(db, scope, task_id))
+
+
 @router.delete("/{task_id}", response_model=Message)
-def cancel_task(
+def delete_task(
     task_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_db),
     scope: AccessScope = Depends(get_scope),
     user: User = Depends(require_permission(P.TASK_DELETE)),
 ) -> Message:
-    """Cancel rather than delete, preserving the task's history and hours."""
+    """Permanently delete a task, with its time entries, reviews and revisions.
+
+    A Team Lead keeps this one. A single task is a blast radius somebody
+    running the work day to day can be trusted with, and it is the deletion
+    people actually need -- a mistyped task is usually added and noticed the
+    same afternoon. Cancelling remains available via POST /{id}/status for
+    work that was real and then stopped.
+    """
     task = _get_visible(db, scope, task_id)
-    task_service.transition(
-        db,
-        task,
-        TaskStatus.CANCELLED.value,
-        actor=user,
-        note="Task cancelled",
-        context=client_context(request),
+    code = task.code
+    impact = deletion_service.delete_task(
+        db, task, actor=user, context=client_context(request)
     )
-    rollup_service.refresh_chain(db, task)
-    return Message(message=f"Task {task.code} cancelled.")
+    return Message(
+        message=(
+            f"Task {code} deleted permanently, with {impact['time_entries']} "
+            f"time entries and {impact['logged_hours']}h of logged time."
+        )
+    )

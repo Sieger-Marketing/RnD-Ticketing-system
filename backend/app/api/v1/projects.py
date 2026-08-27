@@ -31,7 +31,13 @@ from app.schemas.workflow import (
     ProjectSummary,
     ProjectUpdate,
 )
-from app.services import audit_service, code_service, kpi, rollup_service
+from app.services import (
+    audit_service,
+    code_service,
+    deletion_service,
+    kpi,
+    rollup_service,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -283,37 +289,53 @@ def update_project(
     return _detail(db, project, *counts)
 
 
+@router.get("/{project_id}/deletion-impact")
+def project_deletion_impact(
+    project_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    scope: AccessScope = Depends(get_scope),
+    _: User = Depends(require_permission(P.PROJECT_DELETE)),
+) -> dict:
+    """What deleting this project would destroy.
+
+    Read-only. Exists so the confirmation can state the real numbers rather
+    than a generic warning -- "this removes 8 releases, 40 tasks and 312 hours"
+    is a decision; "are you sure?" is not.
+    """
+    return deletion_service.project_impact(db, _get_visible(db, scope, project_id))
+
+
 @router.delete("/{project_id}", response_model=Message)
-def cancel_project(
+def delete_project(
     project_id: uuid.UUID,
     request: Request,
     db: Session = Depends(get_db),
     scope: AccessScope = Depends(get_scope),
     user: User = Depends(require_permission(P.PROJECT_DELETE)),
 ) -> Message:
-    """Cancel rather than delete.
+    """Permanently delete a project and everything beneath it.
 
-    Hard-deleting a project would take its releases, tasks, time entries and
-    audit history with it, destroying exactly the history the analytics and
-    AI-readiness requirements depend on.
+    Irreversible, and it takes the releases, tasks and time entries with it --
+    which is why the permission is held only by an Administrator and a Design
+    Manager. A Team Lead who wants a project out of the way cancels it instead
+    (PATCH with status Cancelled), which keeps the history the KPIs are built
+    from.
+
+    The audit entry is written before the delete and survives it, because
+    audit_logs does not foreign-key the entity it describes.
     """
     project = _get_visible(db, scope, project_id)
-    previous = project.status
-    project.status = ProjectStatus.CANCELLED.value
-    db.flush()
-
-    audit_service.record_status(
-        db,
-        entity_type="project",
-        entity_id=project.id,
-        entity_code=project.code,
-        from_status=previous,
-        to_status=project.status,
-        actor=user,
-        note="Project cancelled",
-        context=client_context(request),
+    code = project.code
+    impact = deletion_service.delete_project(
+        db, project, actor=user, context=client_context(request)
     )
-    return Message(message=f"Project {project.code} cancelled.")
+    return Message(
+        message=(
+            f"Project {code} deleted permanently, with {impact['releases']} "
+            f"releases, {impact['tasks']} tasks and {impact['logged_hours']}h "
+            "of logged time."
+        )
+    )
 
 
 @router.post("/{project_id}/refresh", response_model=ProjectDetail)

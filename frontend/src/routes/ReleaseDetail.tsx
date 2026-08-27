@@ -3,10 +3,19 @@
  * assign a lead, accept, generate tasks from a template, then complete.
  */
 
-import { AlertTriangle, ArrowLeft, Check, Plus, Sparkles, UserPlus } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  Plus,
+  Sparkles,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { DeleteEntityDialog } from "@/components/DeleteEntityDialog";
 import { TaskCreateModal } from "@/components/TaskCreateModal";
 import { TaskTable } from "@/components/TaskTable";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
@@ -31,7 +40,9 @@ import {
   useAssignLead,
   useCompleteRelease,
   useCompletionBlockers,
+  useDeleteRelease,
   useRelease,
+  useReleaseDeletionImpact,
   useReleaseTasks,
   useSuggestedTemplate,
   useUsers,
@@ -48,6 +59,9 @@ export default function ReleaseDetail() {
   const [addingTask, setAddingTask] = useState(false);
   const [leadId, setLeadId] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deletionImpact = useReleaseDeletionImpact(releaseId, deleting);
+  const deleteRelease = useDeleteRelease();
   const [overrideReason, setOverrideReason] = useState("");
 
   const release = useRelease(releaseId);
@@ -189,6 +203,23 @@ export default function ReleaseDetail() {
               >
                 <Check className="h-4 w-4" />
                 Complete release
+              </button>
+            )}
+
+            {/* Administrator and Design Manager only. A Team Lead owns this
+                release but cancels it rather than destroying its hours. */}
+            {can(P.releaseDelete) && (
+              <button
+                type="button"
+                className="btn-ghost text-rag-red"
+                onClick={() => {
+                  deleteRelease.reset();
+                  setDeleting(true);
+                }}
+                title="Permanently delete this release and its tasks"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
               </button>
             )}
           </>
@@ -564,6 +595,28 @@ export default function ReleaseDetail() {
           }}
         />
       )}
+
+      <DeleteEntityDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        entityLabel="design release"
+        code={r.code}
+        name={r.name}
+        impact={deletionImpact.data}
+        impactLoading={deletionImpact.isLoading}
+        isPending={deleteRelease.isPending}
+        error={deleteRelease.error}
+        onConfirm={() =>
+          deleteRelease.mutate(releaseId, {
+            // Back to the parent project, which is the thing that still exists
+            // and where the gap will be obvious.
+            onSuccess: () => {
+              setDeleting(false);
+              navigate(`/projects/${r.project_id}`, { replace: true });
+            },
+          })
+        }
+      />
     </>
   );
 }

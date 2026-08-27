@@ -2,10 +2,11 @@
  * The per-project dashboard (spec section 26).
  */
 
-import { ArrowLeft, Check, GitBranch, Pencil, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, Check, GitBranch, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { type ChangeEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { DeleteEntityDialog } from "@/components/DeleteEntityDialog";
 import { ProjectCreateModal } from "@/components/ProjectCreateModal";
 import { ApplyStandardModal } from "@/components/ApplyStandardModal";
 import { ReleaseCreateModal } from "@/components/ReleaseCreateModal";
@@ -26,8 +27,10 @@ import {
   toneFor,
 } from "@/components/ui/primitives";
 import {
+  useDeleteProject,
   useProject,
   useProjectDashboard,
+  useProjectDeletionImpact,
   useReleases,
   useUpdateProject,
   useUsers,
@@ -89,6 +92,9 @@ export default function ProjectDetail() {
   const [creatingRelease, setCreatingRelease] = useState(false);
   const [applyingStandard, setApplyingStandard] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deletionImpact = useProjectDeletionImpact(projectId, deleting);
+  const deleteProject = useDeleteProject();
 
   const project = useProject(projectId);
   const dashboard = useProjectDashboard(projectId);
@@ -194,6 +200,22 @@ export default function ProjectDetail() {
               >
                 <Plus className="h-4 w-4" />
                 New release
+              </button>
+            )}
+            {/* Administrator and Design Manager only. A Team Lead cancels a
+                project instead, which keeps its history. */}
+            {can(P.projectDelete) && (
+              <button
+                type="button"
+                className="btn-ghost text-rag-red"
+                onClick={() => {
+                  deleteProject.reset();
+                  setDeleting(true);
+                }}
+                title="Permanently delete this project and everything under it"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
               </button>
             )}
           </>
@@ -483,6 +505,29 @@ export default function ProjectDetail() {
           }}
         />
       )}
+
+      <DeleteEntityDialog
+        open={deleting}
+        onClose={() => setDeleting(false)}
+        entityLabel="project"
+        code={p.code}
+        name={p.name}
+        impact={deletionImpact.data}
+        impactLoading={deletionImpact.isLoading}
+        isPending={deleteProject.isPending}
+        error={deleteProject.error}
+        onConfirm={() =>
+          projectId &&
+          deleteProject.mutate(projectId, {
+            // The project no longer exists, so staying on its page would only
+            // render a 404 once the queries refetch.
+            onSuccess: () => {
+              setDeleting(false);
+              navigate("/projects", { replace: true });
+            },
+          })
+        }
+      />
     </>
   );
 }

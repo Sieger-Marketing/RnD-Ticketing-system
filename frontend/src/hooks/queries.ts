@@ -16,6 +16,7 @@ import {
 
 import { del, get, patch, post, put } from "@/lib/api";
 import type {
+  DeletionImpact,
   AppSetting,
   Breakdown,
   CapacitySummary,
@@ -136,6 +137,30 @@ export function useUpdateProject(id: UUID) {
   });
 }
 
+/**
+ * What deleting this project would take with it.
+ *
+ * Only fetched while the confirmation is open (`enabled`), because the counts
+ * are aggregates over every task and time entry beneath the project and there
+ * is no reason to pay for them on every page view.
+ */
+export function useProjectDeletionImpact(id: UUID | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["deletion-impact", "project", id],
+    queryFn: () => get<DeletionImpact>(`/api/projects/${id}/deletion-impact`),
+    enabled: Boolean(id) && enabled,
+    staleTime: 0,
+  });
+}
+
+export function useDeleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: UUID) => del<{ message: string }>(`/api/projects/${id}`),
+    onSuccess: () => invalidateWorkflow(qc),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Releases
 // ---------------------------------------------------------------------------
@@ -232,6 +257,23 @@ export function useCompleteRelease(releaseId: UUID) {
   });
 }
 
+export function useReleaseDeletionImpact(id: UUID | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["deletion-impact", "release", id],
+    queryFn: () => get<DeletionImpact>(`/api/releases/${id}/deletion-impact`),
+    enabled: Boolean(id) && enabled,
+    staleTime: 0,
+  });
+}
+
+export function useDeleteRelease() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: UUID) => del<{ message: string }>(`/api/releases/${id}`),
+    onSuccess: () => invalidateWorkflow(qc),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
@@ -279,6 +321,23 @@ export function useUpdateTask(id: UUID) {
   return useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       patch<TaskDetail>(`/api/tasks/${id}`, body),
+    onSuccess: () => invalidateWorkflow(qc),
+  });
+}
+
+export function useTaskDeletionImpact(id: UUID | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: ["deletion-impact", "task", id],
+    queryFn: () => get<DeletionImpact>(`/api/tasks/${id}/deletion-impact`),
+    enabled: Boolean(id) && enabled,
+    staleTime: 0,
+  });
+}
+
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: UUID) => del<{ message: string }>(`/api/tasks/${id}`),
     onSuccess: () => invalidateWorkflow(qc),
   });
 }

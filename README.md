@@ -14,7 +14,7 @@ PROJECT → DESIGN RELEASE → PRODUCT TEMPLATE → TASK → EXECUTION
 | Area | State |
 |---|---|
 | Database schema + migrations | 34 tables, 240 indexes, 65 FKs, 24 check constraints |
-| Auth + RBAC | 4 roles, 55 permissions, permission-gated routes |
+| Auth + RBAC | 5 roles, 56 permissions, permission-gated routes |
 | Core workflow API | 118 endpoints, OpenAPI documented |
 | KPI / capacity / delay / health engines | Complete, config-driven |
 | Demo data | 15 users, 10 projects, 26 releases, 160 tasks, 340 time entries |

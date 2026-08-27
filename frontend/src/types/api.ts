@@ -737,3 +737,23 @@ export interface AppSetting {
   is_system: boolean;
   updated_at: ISODateTime;
 }
+
+/**
+ * What permanently deleting something would destroy.
+ *
+ * Returned by `GET /api/{projects|releases|tasks}/{id}/deletion-impact`, and
+ * used to state the real numbers in the confirmation rather than a generic
+ * warning. Fields vary by entity: only `task` carries reviews and revisions,
+ * only `project` carries releases.
+ */
+export interface DeletionImpact {
+  entity: "project" | "release" | "task";
+  code: string;
+  name: string;
+  releases?: number;
+  tasks?: number;
+  time_entries: number;
+  logged_hours: number;
+  reviews?: number;
+  revisions?: number;
+}
