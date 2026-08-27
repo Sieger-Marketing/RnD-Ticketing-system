@@ -939,6 +939,58 @@ def _ensure_delay_reason(task: Task) -> None:
         )
 
 
+def _ensure_variance_reason(task: Task, prefer: str | None = None) -> None:
+    """Explain a material gap between estimated and actual hours.
+
+    Sibling of _ensure_delay_reason, and there for the same reason: the
+    workflow refuses to submit or complete a task whose hours drifted past the
+    configured threshold without a stated reason, so the seed has to supply one
+    exactly as a designer would.
+
+    Set on the task rather than passed to `transition`, because a task that
+    needs review reaches the rule through review_service rather than through a
+    call this module makes. Writing the column satisfies every route at once.
+
+    The reason is chosen to match the direction of the drift. Seeding an
+    overrun as "Finished Faster Than Expected" would put a contradiction into
+    the demo data, and the variance breakdown is one of the screens the demo
+    exists to show. `prefer` lets a caller that knows why -- rework, for
+    instance -- say so instead of taking the guess.
+
+    Called before every submission and completion rather than once, because
+    hours keep accruing: a task inside the threshold on its first submission
+    can be well outside it after a round of rework.
+    """
+    estimated = float(task.estimated_hours or 0)
+    actual = float(task.actual_hours or 0)
+    if estimated <= 0 or actual <= 0 or task.variance_reason:
+        return
+
+    # Mirrors workflow.variance_threshold_percent, whose default is 25. Read
+    # as a constant rather than from settings: the seed builds the settings
+    # table itself, and a demo that changed shape with a tuned threshold would
+    # be a confusing thing to debug.
+    if abs(actual - estimated) / estimated * 100 < 25:
+        return
+
+    if prefer:
+        task.variance_reason = prefer
+        return
+
+    task.variance_reason = (
+        RNG.choice(
+            [
+                "Underestimated",
+                "Scope Grew",
+                "Complexity Higher Than Expected",
+                "Rework",
+            ]
+        )
+        if actual > estimated
+        else "Finished Faster Than Expected"
+    )
+
+
 def _work_day(offset_back: int) -> date:
     """A recent working day, `offset_back` days ago, skipping weekends."""
     day = TODAY - timedelta(days=offset_back)
@@ -986,8 +1038,14 @@ def _drive_task_to_done(
     )
 
     # An overdue task must carry a reason before it can move on -- the same
-    # rule the UI enforces.
+    # rule the UI enforces. Hours that missed the estimate need one too, and
+    # both are checked here rather than at each transition below, because the
+    # review route reaches the rule through review_service.
+    #
+    # Safe to read actual_hours at this point: _log_spread writes its entries
+    # through time_service, which refreshes the roll-up chain as it goes.
     _ensure_delay_reason(task)
+    _ensure_variance_reason(task)
 
     if not task.requires_review:
         task_service.transition(db, task, TaskStatus.COMPLETED.value, actor=designer)
@@ -1053,6 +1111,9 @@ def _drive_task_to_done(
         description=f"Rework - {category}",
     )
 
+    # Rework has added hours since the reason was last set, so the
+    # gap may only now be material -- and here the cause is known.
+    _ensure_variance_reason(task, prefer="Rework")
     second = review_service.submit_for_review(
         db, task=task, actor=designer, reviewer_id=reviewer.id
     )
@@ -1115,6 +1176,7 @@ def _leave_task_in_review(
     )
     if task.requires_review:
         _ensure_delay_reason(task)
+        _ensure_variance_reason(task)
         review_service.submit_for_review(
             db, task=task, actor=designer, reviewer_id=reviewer.id
         )

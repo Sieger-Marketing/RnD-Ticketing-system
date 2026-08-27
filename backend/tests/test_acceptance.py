@@ -144,8 +144,16 @@ def scenario(manager, lead, make_designer, client):
     state["first_entry"] = response.json()
 
     # -- 11. Designer submits for review ----------------------------------
+    # The task came in well under its estimate, and the workflow requires that
+    # gap to be explained before the work can move on -- the same rule, and the
+    # same field, the UI puts in front of the designer.
     response = designer.post(
-        "/api/reviews/submit", json={"task_id": task_id, "reviewer_id": lead.id}
+        "/api/reviews/submit",
+        json={
+            "task_id": task_id,
+            "reviewer_id": lead.id,
+            "variance_reason": "Finished Faster Than Expected",
+        },
     )
     assert response.status_code == 201, response.text
     state["review_round_1"] = response.json()

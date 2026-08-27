@@ -67,6 +67,35 @@ if ($LASTEXITCODE -ne 0) {
     Write-Log 'Bootstrap failed; starting anyway. Roles or settings may be stale.' 'WARN'
 }
 
+# Is somebody already on the port?
+#
+# Worth its own check rather than letting uvicorn discover it. Stopping the
+# scheduled task does not always take the server with it -- an instance can be
+# orphaned and keep the socket, and then every restart fails to bind while the
+# portal stays up on the *old* process serving the *old* code. That looks like
+# a restart that did nothing, which is a genuinely confusing thing to debug at
+# a distance.
+#
+# So: say it once, name the process, and give the command that fixes it.
+function Test-PortHeld {
+    param([int]$OnPort)
+    try {
+        $held = Get-NetTCPConnection -LocalPort $OnPort -State Listen -ErrorAction SilentlyContinue
+    } catch { return $null }
+    if (-not $held) { return $null }
+    return ($held | Select-Object -First 1).OwningProcess
+}
+
+$holder = Test-PortHeld -OnPort $Port
+if ($holder) {
+    $name = (Get-Process -Id $holder -ErrorAction SilentlyContinue).Name
+    Write-Log ("Port $Port is already held by PID $holder ($name). This process " +
+               'cannot bind, so it would fail five times and give up while the ' +
+               'old server keeps serving old code.') 'FATAL'
+    Write-Log "Stop it first, elevated:  Stop-Process -Id $holder -Force" 'FATAL'
+    exit 1
+}
+
 # The supervision loop.
 #
 # A crash at 03:00 must not mean the department finds the portal down at 09:00,

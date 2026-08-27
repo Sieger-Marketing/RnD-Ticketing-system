@@ -115,10 +115,44 @@ class TestRoleBasedAccess:
     def test_director_can_see_department_analytics(self, director):
         assert director.get("/api/analytics/department").status_code == 200
 
-    def test_team_lead_cannot_create_a_project(self, lead):
+    def test_team_lead_can_create_a_project(self, lead):
+        """A lead is often first to hear about a job, so they can start one.
+
+        Deliberately widened: waiting for a manager to type the project in was
+        the step where work got done before it existed in the system.
+        """
         response = lead.post(
-            "/api/projects", json={"name": "Lead cannot create this", "priority": "Low"}
+            "/api/projects", json={"name": "RBAC probe - lead can create", "priority": "Low"}
         )
+        assert response.status_code == 201, response.text
+
+    def test_team_lead_creating_a_project_does_not_widen_what_they_see(self, lead):
+        """Creating is not the same as seeing the department.
+
+        The grant is only safe because visible_projects matches created_by_id
+        among other things -- the lead sees what they started, and no more. If
+        this ever starts returning the whole department, project.create has
+        become a visibility grant by accident.
+        """
+        created = lead.post(
+            "/api/projects", json={"name": "RBAC probe - lead visibility", "priority": "Low"}
+        )
+        assert created.status_code == 201, created.text
+
+        visible = lead.get("/api/projects", params={"page_size": 200})
+        assert visible.status_code == 200
+        codes = {p["code"] for p in visible.json()["items"]}
+        assert created.json()["code"] in codes, "a lead must see the project they created"
+        assert "project.view_all" not in lead.user["permissions"]
+
+    def test_team_lead_cannot_delete_a_project(self, lead, manager):
+        """Deleting is permanent and cascades, so it stays with the manager."""
+        project = manager.post(
+            "/api/projects",
+            json={"name": "RBAC probe - lead cannot delete", "priority": "Low"},
+        )
+        assert project.status_code == 201, project.text
+        response = lead.delete(f"/api/projects/{project.json()['id']}")
         assert response.status_code == 403
 
     def test_manager_can_create_a_project(self, manager):

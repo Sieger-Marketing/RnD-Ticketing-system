@@ -93,6 +93,13 @@ class ReviewSubmit(BaseModel):
     reviewer_id: uuid.UUID | None = None
     note: str | None = None
     delay_reason: str | None = None
+    #: Required when the hours drifted materially from the estimate, exactly as
+    #: on the status endpoint. Without it here, a task that needs review and
+    #: overran had no route forward at all: submitting is the only way into the
+    #: review queue, and the transition it performs is one the variance rule
+    #: guards.
+    variance_reason: str | None = None
+    variance_note: str | None = None
 
 
 class ReviewDecision(BaseModel):

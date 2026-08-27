@@ -132,6 +132,8 @@ def submit_for_review(
         reviewer_id=payload.reviewer_id,
         note=payload.note,
         delay_reason=payload.delay_reason,
+        variance_reason=payload.variance_reason,
+        variance_note=payload.variance_note,
         context=client_context(request),
     )
     return ReviewOut.from_model(review)

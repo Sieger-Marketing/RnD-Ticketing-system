@@ -54,6 +54,8 @@ def submit_for_review(
     reviewer_id: uuid.UUID | None = None,
     note: str | None = None,
     delay_reason: str | None = None,
+    variance_reason: str | None = None,
+    variance_note: str | None = None,
     context: dict | None = None,
 ) -> Review:
     """Move a task into the review queue and open a review record."""
@@ -64,6 +66,8 @@ def submit_for_review(
         actor=actor,
         note=note,
         delay_reason=delay_reason,
+        variance_reason=variance_reason,
+        variance_note=variance_note,
         context=context,
     )
 
