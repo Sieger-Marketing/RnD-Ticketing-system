@@ -308,6 +308,15 @@ def update_release(
         context=client_context(request),
     )
     rollup_service.refresh_release(db, release)
+    # And then the project, because that is what re-evaluates health -- for the
+    # project and for every release under it. Without this, moving a release's
+    # planned_end leaves its RAG colour showing yesterday's answer until the
+    # nightly sweep: a manager who pulls a date in and strands the work behind
+    # it sees GREEN and no findings, which is the opposite of what just became
+    # true. Adding a task already refreshes health this way, through the task
+    # roll-up chain; editing the release should not be the quiet exception.
+    if release.project is not None:
+        rollup_service.refresh_project(db, release.project)
     return _detail(db, release)
 
 

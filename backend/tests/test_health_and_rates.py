@@ -35,6 +35,20 @@ class _Release:
         self.actual_end = actual_end
         self.delay_days = delay_days
         self.completion_percent = completion_percent
+        # The schedule and effort rules read these too. A stand-in has to carry
+        # every field the engine touches or it fails with AttributeError, which
+        # says nothing about the rule under test -- so they default to the
+        # values that make those rules no-ops, leaving the schedule rules alone
+        # as the thing being measured.
+        self.baseline_planned_start = None
+        self.baseline_planned_end = None
+        self.forecast_end = None
+        self.estimated_hours = 0
+        self.actual_hours = 0
+        self.rework_hours = 0
+        self.revision_count = 0
+        self.health = "GREEN"
+        self.health_reasons = []
         # No id: the task and blocker queries then match nothing, leaving the
         # schedule rules as the only thing under test.
         self.id = None

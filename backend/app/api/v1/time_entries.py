@@ -13,6 +13,7 @@ from app.core.deps import (
     AccessScope,
     get_current_user,
     get_scope,
+    require_any_permission,
     require_permission,
 )
 from app.core.errors import NotFoundError, PermissionDeniedError
@@ -115,7 +116,14 @@ def stop_timer(
 def log_time(
     payload: TimeEntryCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission(P.TIME_LOG_OWN)),
+    # Either permission opens the door; which one you hold decides whose time
+    # you may log, and that is checked below. Gating on time.log_own alone made
+    # time.edit_any unreachable: a Design Manager holds the second and not the
+    # first, so the only role granted "correct another user's time entry" was
+    # refused before it got near the check that would have allowed it.
+    user: User = Depends(
+        require_any_permission(P.TIME_LOG_OWN, P.TIME_EDIT_ANY)
+    ),
 ) -> TimeEntryOut:
     task = db.get(Task, payload.task_id)
     if task is None:
@@ -151,7 +159,9 @@ def log_time(
 def delete_entry(
     entry_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission(P.TIME_LOG_OWN)),
+    user: User = Depends(
+        require_any_permission(P.TIME_LOG_OWN, P.TIME_EDIT_ANY)
+    ),
 ) -> Message:
     entry = db.get(TimeEntry, entry_id)
     if entry is None:

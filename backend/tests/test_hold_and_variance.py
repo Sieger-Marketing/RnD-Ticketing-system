@@ -121,6 +121,16 @@ def test_held_work_comes_back_to_where_it_was(manager, a_task):
 
 
 def test_a_release_and_a_project_can_be_held(manager, a_task):
+    # A release is created in Draft, and Draft cannot go straight to On Hold --
+    # pausing something that has not started is meaningless, so the state
+    # machine does not allow it. Get it underway first, which is the only state
+    # in which holding it says anything.
+    for status in ("Planning", "In Progress"):
+        moved = manager.post(
+            f"/api/releases/{a_task['release']['id']}/status", json={"status": status}
+        )
+        assert moved.status_code == 200, moved.text
+
     release = manager.post(
         f"/api/releases/{a_task['release']['id']}/status",
         json={"status": "On Hold"},
@@ -150,8 +160,9 @@ def test_a_release_and_a_project_can_be_held(manager, a_task):
 # ---------------------------------------------------------------------------
 
 
-def test_finishing_far_over_estimate_requires_a_reason(manager, a_task, lead):
+def test_finishing_far_over_estimate_requires_a_reason(manager, a_task, make_designer):
     """Ten hours estimated, thirty logged, and no explanation offered."""
+    worker = make_designer("overran")
     task = manager.post(
         "/api/tasks",
         json={
@@ -160,22 +171,28 @@ def test_finishing_far_over_estimate_requires_a_reason(manager, a_task, lead):
             "task_type": "2D Checking",
             "estimated_hours": 10,
             "requires_review": False,
-            "assigned_to_id": lead.id,
+            "assigned_to_id": worker.id,
         },
     ).json()
 
     manager.post(f"/api/tasks/{task['id']}/status", json={"status": "In Progress"})
-    logged = manager.post(
-        "/api/time-entries",
-        json={
-            "task_id": task["id"],
-            "user_id": lead.id,
-            "entry_date": date.today().isoformat(),
-            "hours": 30,
-            "description": "Took far longer than planned",
-        },
-    )
-    assert logged.status_code == 201, logged.text
+
+    # Thirty hours, but split across two days and on dates of this test's own.
+    # A single entry is capped at 16 hours, and an entry with no interval is
+    # given 09:00 by the server -- so two entries on one date, or on a date
+    # another test used for the same person, are refused as overlapping.
+    for offset, hours in ((3, 15), (2, 15)):
+        logged = manager.post(
+            "/api/time/entries",
+            json={
+                "task_id": task["id"],
+                "user_id": worker.id,
+                "entry_date": (date.today() - timedelta(days=offset)).isoformat(),
+                "hours": hours,
+                "description": "Took far longer than planned",
+            },
+        )
+        assert logged.status_code == 201, logged.text
 
     refused = manager.post(
         f"/api/tasks/{task['id']}/status", json={"status": "Completed"}
@@ -193,8 +210,9 @@ def test_finishing_far_over_estimate_requires_a_reason(manager, a_task, lead):
     assert accepted.json()["variance_reason"] == "Scope Grew"
 
 
-def test_finishing_close_to_estimate_needs_no_explanation(manager, a_task, lead):
+def test_finishing_close_to_estimate_needs_no_explanation(manager, a_task, make_designer):
     """The rule must not nag about ordinary drift."""
+    worker = make_designer("ontarget")
     task = manager.post(
         "/api/tasks",
         json={
@@ -203,16 +221,16 @@ def test_finishing_close_to_estimate_needs_no_explanation(manager, a_task, lead)
             "task_type": "Concept",
             "estimated_hours": 10,
             "requires_review": False,
-            "assigned_to_id": lead.id,
+            "assigned_to_id": worker.id,
         },
     ).json()
 
     manager.post(f"/api/tasks/{task['id']}/status", json={"status": "In Progress"})
     manager.post(
-        "/api/time-entries",
+        "/api/time/entries",
         json={
             "task_id": task["id"],
-            "user_id": lead.id,
+            "user_id": worker.id,
             "entry_date": date.today().isoformat(),
             "hours": 11,
             "description": "About right",
@@ -223,8 +241,9 @@ def test_finishing_close_to_estimate_needs_no_explanation(manager, a_task, lead)
     assert done.status_code == 200, done.text
 
 
-def test_finishing_far_under_estimate_also_asks_why(manager, a_task, lead):
+def test_finishing_far_under_estimate_also_asks_why(manager, a_task, make_designer):
     """An estimate that was twice too big is as wrong as one twice too small."""
+    worker = make_designer("underran")
     task = manager.post(
         "/api/tasks",
         json={
@@ -233,17 +252,18 @@ def test_finishing_far_under_estimate_also_asks_why(manager, a_task, lead):
             "task_type": "Concept",
             "estimated_hours": 20,
             "requires_review": False,
-            "assigned_to_id": lead.id,
+            "assigned_to_id": worker.id,
         },
     ).json()
 
     manager.post(f"/api/tasks/{task['id']}/status", json={"status": "In Progress"})
     manager.post(
-        "/api/time-entries",
+        "/api/time/entries",
         json={
             "task_id": task["id"],
-            "user_id": lead.id,
-            "entry_date": date.today().isoformat(),
+            "user_id": worker.id,
+            # Its own date, so it cannot overlap another test's entry.
+            "entry_date": (date.today() - timedelta(days=5)).isoformat(),
             "hours": 4,
             "description": "Much simpler than expected",
         },
@@ -272,7 +292,7 @@ def test_a_task_with_no_estimate_is_not_asked(manager, a_task, lead):
 
     manager.post(f"/api/tasks/{task['id']}/status", json={"status": "In Progress"})
     manager.post(
-        "/api/time-entries",
+        "/api/time/entries",
         json={
             "task_id": task["id"],
             "user_id": lead.id,
@@ -306,11 +326,19 @@ class _Release:
         self.revision_count = 0
 
 
-def test_a_release_whose_tasks_run_past_it_says_so(db, manager, a_task):
-    """The plan cannot close, and it should say so on the day it is made."""
-    release_id = a_task["release"]["id"]
+def test_a_task_planned_past_the_release_moves_the_target(db, manager, a_task):
+    """The release date follows the work, and the movement is recorded.
 
-    # A task planned well beyond the release's own end date.
+    This used to assert tasks_past_release_date. It cannot any more, and that
+    is the system being better rather than the rule being wrong: adding a task
+    beyond the release end now extends the release to cover it, so there is no
+    task sitting past the date. What is worth saying instead is that the target
+    moved from what was originally committed, which is the thing a manager
+    needs to see.
+    """
+    release_id = a_task["release"]["id"]
+    before = manager.get(f"/api/releases/{release_id}").json()["planned_end"]
+
     manager.post(
         "/api/tasks",
         json={
@@ -324,6 +352,52 @@ def test_a_release_whose_tasks_run_past_it_says_so(db, manager, a_task):
     )
 
     detail = manager.get(f"/api/releases/{release_id}").json()
+    assert detail["planned_end"] > before, "the release should have been extended"
+
+    codes = [r["code"] for r in detail["health_reasons"]]
+    assert "target_moved_from_baseline" in codes, detail["health_reasons"]
+
+
+def test_a_release_pulled_in_past_its_tasks_says_so(manager, a_task):
+    """The other direction: the date moves and the work does not.
+
+    Extension keeps tasks inside the release when work is added, so the only
+    way to end up with tasks past the date is to bring the date forward. That
+    is a real thing a manager does under pressure, and the release should say
+    plainly that the plan no longer closes.
+    """
+    release = manager.post(
+        "/api/releases",
+        json={
+            "project_id": a_task["project"]["id"],
+            "name": "Pulled in later",
+            "release_type": "Design Release",
+            "planned_start": date.today().isoformat(),
+            "planned_end": (date.today() + timedelta(days=30)).isoformat(),
+        },
+    ).json()
+
+    # Comfortably inside the release, so nothing is extended on the way in.
+    created = manager.post(
+        "/api/tasks",
+        json={
+            "release_id": release["id"],
+            "name": "Runs to the twentieth",
+            "task_type": "Check Sheet Filling",
+            "estimated_hours": 4,
+            "planned_end": (date.today() + timedelta(days=20)).isoformat(),
+            "requires_review": False,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    pulled = manager.patch(
+        f"/api/releases/{release['id']}",
+        json={"planned_end": (date.today() + timedelta(days=10)).isoformat()},
+    )
+    assert pulled.status_code == 200, pulled.text
+
+    detail = manager.get(f"/api/releases/{release['id']}").json()
     codes = [r["code"] for r in detail["health_reasons"]]
     assert "tasks_past_release_date" in codes, detail["health_reasons"]
 
