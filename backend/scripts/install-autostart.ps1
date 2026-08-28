@@ -94,6 +94,36 @@ foreach ($required in @($runService, $backupScript, (Join-Path $backendDir '.env
     }
 }
 
+# Does the backup destination actually exist?
+#
+# A path on a drive that is not present registers perfectly happily and then
+# fails every night at 20:00, unattended, with nobody reading the log. That is
+# strictly worse than having no backup task at all, because the task's presence
+# is taken as evidence that backups are happening.
+#
+# UNC paths are left alone: a share can be legitimately offline right now and
+# reachable when the task runs.
+if ($BackupTo -and -not $BackupTo.StartsWith('\')) {
+    $driveLetter = (Split-Path $BackupTo -Qualifier -ErrorAction SilentlyContinue)
+    if ($driveLetter) {
+        $exists = Test-Path ($driveLetter + '')
+        if (-not $exists) {
+            Write-Host ''
+            Write-Host "  Drive $driveLetter does not exist on this machine." -ForegroundColor Red
+            Write-Host "  -BackupTo $BackupTo would register a task that fails every"
+            Write-Host '  night without telling anybody. Refusing to set that up.'
+            Write-Host ''
+            Write-Host '  Available drives:' -ForegroundColor Yellow
+            Get-PSDrive -PSProvider FileSystem |
+                ForEach-Object { Write-Host ("    {0}:  {1:n0} GB free" -f $_.Name, ($_.Free / 1GB)) }
+            Write-Host ''
+            Write-Host '  Plug the drive in and re-run, or pass a path on a drive above.'
+            Write-Host ''
+            exit 1
+        }
+    }
+}
+
 if (-not $BackupTo) {
     $BackupTo = Join-Path (Split-Path $backendDir -Parent) 'backups'
     Write-Host ''
