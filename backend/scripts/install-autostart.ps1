@@ -193,9 +193,14 @@ Register-ScheduledTask -TaskName $API_TASK -Action $action -Trigger $trigger `
 
 Write-Host "Registered: $API_TASK (at startup, as SYSTEM)" -ForegroundColor Green
 if ($Lan) {
-    $lanIp = (Get-NetIPAddress -AddressFamily IPv4 |
-        Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
-        Select-Object -First 1).IPAddress
+    # The adapter that carries a default gateway is the one the office actually
+    # reaches. Taking the first non-loopback address instead picks up Hyper-V
+    # and WSL virtual switches -- on this machine that printed 172.29.16.1,
+    # an address nothing outside the box can route to, which is a worse
+    # failure than printing nothing at all.
+    $lanIp = (Get-NetIPConfiguration |
+        Where-Object { $_.IPv4DefaultGateway -and $_.IPv4Address } |
+        Select-Object -First 1).IPv4Address.IPAddress
     Write-Host "  The office reaches it at http://${lanIp}:8000" -ForegroundColor Cyan
 }
 
