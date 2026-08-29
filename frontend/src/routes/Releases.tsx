@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { ChipFilter, FilterBar, Pagination, SearchInput } from "@/components/ui/Filters";
+import { Select } from "@/components/ui/form";
 import {
   EmptyState,
   ErrorState,
@@ -14,12 +15,14 @@ import {
   PriorityLabel,
   ProgressBar,
   SkeletonRows,
+  Spinner,
   StatusBadge,
 } from "@/components/ui/primitives";
 import { P, useAuth } from "@/store/auth";
-import { useReleases } from "@/hooks/queries";
+import { useAssignLead, useReleases, useUsers } from "@/hooks/queries";
 import { DASH, hours, shortDate, variance } from "@/lib/format";
 import { HEALTH_LEVELS, RELEASE_STATUSES } from "@/lib/vocab";
+import type { ReleaseSummary } from "@/types/api";
 
 export default function Releases() {
   const navigate = useNavigate();
@@ -182,9 +185,7 @@ export default function Releases() {
                         </div>
                       </td>
                       <td className="td text-xs text-ink-600">
-                        {release.team_lead_name ?? (
-                          <span className="text-rag-amber">Unassigned</span>
-                        )}
+                        <LeadCell release={release} />
                       </td>
                       <td className="td">
                         <StatusBadge status={release.status} />
@@ -257,5 +258,54 @@ export default function Releases() {
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * Assign a release's lead without leaving the list.
+ *
+ * The detail page has always been able to do this, one release at a time. With
+ * 28 of 29 releases unled that is 28 page visits, and the work that unblocks --
+ * a release lead is what gives its tasks a lead, and a task lead is who a
+ * review is routed to -- is exactly the work nobody does when it costs that
+ * much. The list already showed "Unassigned" in amber; it just could not act
+ * on it.
+ *
+ * Falls back to plain text for anyone without the permission, rather than
+ * offering a control the API would refuse.
+ */
+function LeadCell({ release }: { release: ReleaseSummary }) {
+  const can = useAuth((state) => state.can);
+  const { data: leads } = useUsers({ role: "Team Lead" });
+  const assign = useAssignLead(release.id);
+
+  const finished = release.status === "Completed" || release.status === "Cancelled";
+
+  if (!can(P.releaseAssignLead) || finished) {
+    return (
+      <>
+        {release.team_lead_name ?? <span className="text-rag-amber">Unassigned</span>}
+      </>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Select
+        aria-label={`Team lead for ${release.code}`}
+        className="py-1 text-xs font-normal"
+        value={release.team_lead_id ?? ""}
+        disabled={assign.isPending}
+        placeholder="Unassigned"
+        onChange={(event) => {
+          // The row is a link to the release; choosing a lead is not navigation.
+          event.stopPropagation();
+          if (event.target.value) assign.mutate(event.target.value);
+        }}
+        options={(leads?.items ?? []).map((u) => ({ value: u.id, label: u.full_name }))}
+      />
+      {assign.isPending && <Spinner className="h-3 w-3 shrink-0" />}
+      {assign.isError && <span className="text-2xs text-rag-red">not saved</span>}
+    </div>
   );
 }
