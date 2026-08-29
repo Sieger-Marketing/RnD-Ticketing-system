@@ -6,11 +6,12 @@
  * on screen are exactly the moves the state machine will accept.
  */
 
-import { AlertTriangle, ArrowLeft, Check, Link2, Play, Send, Square, Trash2, UserPlus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Link2, Pencil, Play, Send, Square, Trash2, UserPlus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { AssigneePicker } from "@/components/AssigneePicker";
+import { TaskEditModal } from "@/components/TaskEditModal";
 import { Field, FormError, Select, TextArea, TextInput } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -72,6 +73,7 @@ export default function TaskDetail() {
   const { can, user } = useAuth();
 
   const [assigning, setAssigning] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [estimating, setEstimating] = useState(false);
   const [estimateHours, setEstimateHours] = useState("");
@@ -308,6 +310,17 @@ export default function TaskDetail() {
                 disabled={move.isPending}
               >
                 Mark complete
+              </button>
+            )}
+
+            {can(P.taskUpdate) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit task
               </button>
             )}
 
@@ -642,6 +655,13 @@ export default function TaskDetail() {
           </Card>
         </div>
       </div>
+
+      <TaskEditModal
+        task={t}
+        open={editing}
+        onClose={() => setEditing(false)}
+        onSaved={() => setEditing(false)}
+      />
 
       {/* Assign */}
       <Modal
