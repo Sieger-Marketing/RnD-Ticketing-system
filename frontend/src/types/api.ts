@@ -294,6 +294,10 @@ export interface ReleaseSummary {
   delay_days: number;
   planned_start: ISODate | null;
   planned_end: ISODate | null;
+  /** The first dates the release was ever given. Never revised — delivery is
+   *  measured against these, not against a target that follows the work. */
+  baseline_planned_start?: ISODate | null;
+  baseline_planned_end?: ISODate | null;
   team_lead_id: UUID | null;
   team_lead_name: string | null;
   task_count: number;

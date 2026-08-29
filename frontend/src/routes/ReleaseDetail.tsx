@@ -3,19 +3,12 @@
  * assign a lead, accept, generate tasks from a template, then complete.
  */
 
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Check,
-  Plus,
-  Sparkles,
-  Trash2,
-  UserPlus,
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Pencil, Plus, Sparkles, Trash2, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { DeleteEntityDialog } from "@/components/DeleteEntityDialog";
+import { ReleaseEditModal } from "@/components/ReleaseEditModal";
 import { TaskCreateModal } from "@/components/TaskCreateModal";
 import { TaskTable } from "@/components/TaskTable";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
@@ -56,6 +49,7 @@ export default function ReleaseDetail() {
   const { can, user } = useAuth();
 
   const [assigning, setAssigning] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
   const [leadId, setLeadId] = useState("");
   const [completing, setCompleting] = useState(false);
@@ -177,6 +171,17 @@ export default function ReleaseDetail() {
               >
                 <UserPlus className="h-4 w-4" />
                 {r.team_lead_id ? "Reassign lead" : "Assign lead"}
+              </button>
+            )}
+
+            {can(P.releaseUpdate) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="h-4 w-4" />
+                Edit release
               </button>
             )}
 
@@ -436,6 +441,13 @@ export default function ReleaseDetail() {
           )}
         </div>
       </div>
+
+      <ReleaseEditModal
+        release={r}
+        open={editing}
+        onClose={() => setEditing(false)}
+        onSaved={() => setEditing(false)}
+      />
 
       <Modal
         open={assigning}

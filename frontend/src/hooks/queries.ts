@@ -165,6 +165,15 @@ export function useDeleteProject() {
 // Releases
 // ---------------------------------------------------------------------------
 
+export function useUpdateRelease(id: UUID) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      patch<ReleaseDetail>(`/api/releases/${id}`, body),
+    onSuccess: () => invalidateWorkflow(qc),
+  });
+}
+
 export function useReleases(params?: Params) {
   return useQuery({
     queryKey: keys.releases(params),
