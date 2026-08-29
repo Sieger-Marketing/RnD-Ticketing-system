@@ -304,6 +304,12 @@ _DESIGNER = [
     P.PROJECT_VIEW_ASSIGNED,
     P.RELEASE_VIEW_ASSIGNED,
     P.TASK_VIEW_OWN,
+    # Raise work they find themselves, on the releases they are already on.
+    # create_task filters by release visibility, so this reaches the releases a
+    # designer holds a task on and no others. Without it, work discovered
+    # mid-job -- a drawing nobody scoped, a check that turned out to be needed
+    # -- either goes unrecorded or waits for a lead to type it in.
+    P.TASK_CREATE,
     P.TASK_EXECUTE,
     P.TIME_LOG_OWN,
     P.SKILL_VIEW,

@@ -26,6 +26,7 @@ import {
   useVocabularies,
 } from "@/hooks/queries";
 import { PRIORITIES, toOptions } from "@/lib/vocab";
+import { P, useAuth } from "@/store/auth";
 import type { TaskDetail, UUID } from "@/types/api";
 
 export function TaskCreateModal({
@@ -40,6 +41,8 @@ export function TaskCreateModal({
   onClose: () => void;
   onCreated: (task: TaskDetail) => void;
 }) {
+  const { can, user } = useAuth();
+  const canAssign = can(P.taskAssign);
   const create = useCreateTask();
   const skills = useSkills();
   const vocab = useVocabularies();
@@ -68,6 +71,7 @@ export function TaskCreateModal({
   const [plannedStart, setPlannedStart] = useState("");
   const [plannedEnd, setPlannedEnd] = useState("");
   const [assignee, setAssignee] = useState<UUID | null>(null);
+  const effectiveAssignee = canAssign ? assignee : (user?.id ?? null);
   const [skillId, setSkillId] = useState("");
   const [requiresReview, setRequiresReview] = useState(true);
   const [mandatory, setMandatory] = useState(true);
@@ -98,7 +102,7 @@ export function TaskCreateModal({
         estimated_hours: estimate,
         planned_start: plannedStart || null,
         planned_end: plannedEnd || null,
-        assigned_to_id: assignee,
+        assigned_to_id: effectiveAssignee,
         required_skill_id: skillId || null,
         requires_review: requiresReview,
         is_mandatory: mandatory,
@@ -286,13 +290,27 @@ export function TaskCreateModal({
           />
         </Field>
 
-        <Field label="Give it to" hint="Anyone who does design work. Can be left for later.">
-          <AssigneePicker
-            requiredSkillId={skillId || null}
-            selectedId={assignee}
-            onSelect={setAssignee}
-          />
-        </Field>
+        {/* The picker loads the assignment board, which needs task.assign on
+            its own -- showing it to a designer would 403 the moment it opened.
+            A designer raising work has one sensible answer anyway: themselves. */}
+        {canAssign ? (
+          <Field label="Give it to" hint="Anyone who does design work. Can be left for later.">
+            <AssigneePicker
+              requiredSkillId={skillId || null}
+              selectedId={assignee}
+              onSelect={setAssignee}
+            />
+          </Field>
+        ) : (
+          <Field
+            label="Give it to"
+            hint="Work you raise is yours. A team lead can move it afterwards."
+          >
+            <p className="rounded-md border border-ink-200 px-3 py-2 text-sm text-ink-700">
+              {user?.full_name ?? "You"}
+            </p>
+          </Field>
+        )}
 
         <div className="space-y-2">
           <label className="flex items-start gap-2 rounded-md border border-ink-200 px-3 py-2">

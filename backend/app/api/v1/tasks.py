@@ -363,9 +363,22 @@ def create_task(
     payload: TaskCreate,
     request: Request,
     db: Session = Depends(get_db),
+    scope: AccessScope = Depends(get_scope),
     user: User = Depends(require_permission(P.TASK_CREATE)),
 ) -> TaskDetail:
-    release = db.get(DesignRelease, payload.release_id)
+    # Holding task.create says you may create tasks, not that you may create
+    # them anywhere. Unscoped, the permission reached every release in the
+    # department -- the same shape create_release had. It answers 404 rather
+    # than 403 for a release the caller cannot see, so it cannot be used to
+    # discover which releases exist. Anyone with release.view_all is
+    # unaffected, everything being visible to them already.
+    # Imported here, not at module scope: releases.py already imports
+    # task_summary from this module, so a top-level import closes the cycle.
+    from app.api.v1.releases import _visible as visible_releases
+
+    release = db.execute(
+        visible_releases(scope).where(DesignRelease.id == payload.release_id)
+    ).scalar_one_or_none()
     if release is None:
         raise NotFoundError("Design release not found.")
 
