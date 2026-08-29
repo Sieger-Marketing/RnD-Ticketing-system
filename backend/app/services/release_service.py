@@ -140,7 +140,15 @@ def assign_team_lead(
     *,
     actor: User | None,
     context: dict | None = None,
+    notify: bool = True,
 ) -> DesignRelease:
+    """Give a release to a lead, and its unrouted tasks with it.
+
+    `notify` exists for backfills. Filling in a field that should always have
+    been set is one decision about thirty releases, not thirty decisions -- and
+    thirty "Release assigned" notices, each copied to the design manager, buries
+    the notifications that report something happening now.
+    """
     previous = release.team_lead_id
     release.team_lead_id = lead.id
 
@@ -160,10 +168,11 @@ def assign_team_lead(
             db, release, ReleaseStatus.ASSIGNED.value, actor=actor, context=context
         )
 
-    notification_service.notify_with_manager_copy(
-        db,
-        user_id=lead.id,
-        event_type=Event.RELEASE_ASSIGNED,
+    if notify:
+        notification_service.notify_with_manager_copy(
+            db,
+            user_id=lead.id,
+            event_type=Event.RELEASE_ASSIGNED,
         title=f"Release assigned: {release.name}",
         body=f"{release.code} is due {release.planned_end or 'unscheduled'}.",
         entity_type="release",

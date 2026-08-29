@@ -207,7 +207,9 @@ def create_release(
         release_type=payload.release_type,
         description=payload.description,
         product_id=payload.product_id or project.product_id,
-        team_lead_id=payload.team_lead_id,
+        # Falls back to whoever runs the project. A release with no lead
+        # gives its tasks no lead, and a review against one routes nowhere.
+        team_lead_id=payload.team_lead_id or project.team_lead_id,
         priority=payload.priority,
         planned_start=payload.planned_start,
         planned_end=payload.planned_end,

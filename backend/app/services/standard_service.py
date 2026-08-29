@@ -154,6 +154,12 @@ def apply_to_project(
             release_type=DEFAULT_RELEASE_TYPE,
             description=row.condition,
             product_id=product.id,
+            # A release belongs to whoever runs the project until somebody says
+            # otherwise. Created blank, it belongs to nobody: its tasks get no
+            # lead either, and a review submitted against one routes to nobody
+            # at all. Inheriting is the answer that is right by default and
+            # trivially changed when it is not.
+            team_lead_id=project.team_lead_id,
             priority=project.priority,
             planned_start=planned_start,
             status=ReleaseStatus.DRAFT.value,
