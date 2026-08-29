@@ -49,5 +49,16 @@ if ($Lan) {
 }
 
 Write-Host "Serving on http://${listen}:${Port}  (health: /health, readiness: /health/db)"
-Write-Host "Published at https://u1-l-2rkv8f4.tailc2b13d.ts.net while the Tailscale Funnel is on."
+# Report where this machine is actually reachable, rather than a hardcoded
+# address. A baked-in tunnel name printed on a second machine is worse than no
+# message at all: during a migration it tells you the wrong box is serving.
+if ($Lan) {
+    $lanIp = (Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
+        Select-Object -First 1).IPAddress
+    if ($lanIp) { Write-Host "The office reaches it at http://${lanIp}:${Port}" }
+}
+$funnel = & tailscale funnel status 2>$null | Select-String -Pattern 'https://\S+\.ts\.net' |
+    Select-Object -First 1
+if ($funnel) { Write-Host "Published at $($funnel.Matches[0].Value) while the Tailscale Funnel is on." }
 & $python -m uvicorn app.main:app --host $listen --port $Port

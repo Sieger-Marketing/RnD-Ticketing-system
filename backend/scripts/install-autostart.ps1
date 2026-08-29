@@ -27,6 +27,10 @@ param(
     [string]$BackupTo,
     [string]$BackupAt = '20:00',
     [string]$SweepAt  = '06:30',
+    # Serve the office network, not just this machine. Needed when people reach
+    # the portal directly by address rather than through a tunnel -- without
+    # it the API binds 127.0.0.1 and answers nobody but itself.
+    [switch]$Lan,
     [switch]$Uninstall
 )
 
@@ -139,10 +143,30 @@ if (-not $BackupTo) {
 # 1. The API, at boot
 # ---------------------------------------------------------------------------
 
+# The scheduled task is the thing that runs after a reboot, so -Lan has to be
+# baked into it. Passing it only to serve.ps1 by hand works until the machine
+# restarts, and then the office quietly loses the portal while the machine
+# looks perfectly healthy from its own console.
+$serviceArgs = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runService`""
+if ($Lan) { $serviceArgs += ' -ListenAddress 0.0.0.0' }
+
 $action = New-ScheduledTaskAction `
     -Execute 'powershell.exe' `
-    -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$runService`"" `
+    -Argument $serviceArgs `
     -WorkingDirectory $backendDir
+
+# Listening is not the same as being reachable. A foreground run prompts the
+# user to allow the port and quietly creates a rule; a SYSTEM task gets no
+# prompt and no rule, so the port is open on the machine and closed at the
+# firewall -- which reads as "the server is up but nobody can reach it".
+if ($Lan) {
+    $ruleName = 'DesignOps API (office network)'
+    Get-NetFirewallRule -DisplayName $ruleName -ErrorAction SilentlyContinue |
+        Remove-NetFirewallRule -ErrorAction SilentlyContinue
+    New-NetFirewallRule -DisplayName $ruleName -Direction Inbound -Action Allow `
+        -Protocol TCP -LocalPort 8000 -Profile Any | Out-Null
+    Write-Host "Firewall: allowed inbound TCP 8000 ($ruleName)" -ForegroundColor Green
+}
 
 $trigger = New-ScheduledTaskTrigger -AtStartup
 
@@ -168,6 +192,12 @@ Register-ScheduledTask -TaskName $API_TASK -Action $action -Trigger $trigger `
     -Description 'Serves the Design Operations portal. Starts at boot, restarts on failure.' | Out-Null
 
 Write-Host "Registered: $API_TASK (at startup, as SYSTEM)" -ForegroundColor Green
+if ($Lan) {
+    $lanIp = (Get-NetIPAddress -AddressFamily IPv4 |
+        Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' } |
+        Select-Object -First 1).IPAddress
+    Write-Host "  The office reaches it at http://${lanIp}:8000" -ForegroundColor Cyan
+}
 
 # ---------------------------------------------------------------------------
 # 2. The nightly backup
