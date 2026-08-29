@@ -10,6 +10,7 @@
 import { RotateCcw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
+import { RecordLink } from "@/components/RecordLink";
 import { ChipFilter, FilterBar, Pagination } from "@/components/ui/Filters";
 import { FormError } from "@/components/ui/form";
 import {
@@ -221,9 +222,16 @@ export default function Revisions() {
                             className="truncate text-2xs text-ink-500"
                             title={revision.task_code ?? undefined}
                           >
-                            {[revision.project_name, revision.release_name]
-                              .filter(Boolean)
-                              .join(" · ") || revision.task_code}
+                            <RecordLink kind="project" id={revision.project_id}>
+                              {revision.project_name}
+                            </RecordLink>
+                            {revision.project_name && revision.release_name && " · "}
+                            <RecordLink kind="release" id={revision.release_id}>
+                              {revision.release_name}
+                            </RecordLink>
+                            {!revision.project_name &&
+                              !revision.release_name &&
+                              revision.task_code}
                           </div>
                         </td>
                         <td className="td text-xs tabular">{revision.revision_number}</td>

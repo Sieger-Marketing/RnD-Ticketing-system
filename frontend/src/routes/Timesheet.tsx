@@ -19,6 +19,7 @@ import { Clock, Square, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { RecordLink } from "@/components/RecordLink";
 import { Field, FormError, TextArea, TextInput } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -263,9 +264,16 @@ export default function Timesheet() {
                     title={e.task_code ?? undefined}
                   >
                     <span className="block truncate">
-                      {e.project_name ?? "No project"}
+                      <RecordLink kind="project" id={e.project_id}>
+                        {e.project_name ?? "No project"}
+                      </RecordLink>
                       {e.release_name && (
-                        <span className="text-ink-500"> · {e.release_name}</span>
+                        <span className="text-ink-500">
+                          {" · "}
+                          <RecordLink kind="release" id={e.release_id}>
+                            {e.release_name}
+                          </RecordLink>
+                        </span>
                       )}
                     </span>
                     <span className="block truncate text-2xs text-ink-500">

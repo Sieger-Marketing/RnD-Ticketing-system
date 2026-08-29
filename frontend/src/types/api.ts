@@ -485,6 +485,8 @@ export interface TimeEntry {
   /** Where the time went, in the words the team use for it. */
   project_name: string | null;
   release_name: string | null;
+  project_id: UUID | null;
+  release_id: UUID | null;
   user_id: UUID;
   user_name: string | null;
   entry_date: ISODate;
@@ -506,6 +508,8 @@ export interface Review {
   task_name: string | null;
   project_name: string | null;
   release_name: string | null;
+  project_id: UUID | null;
+  release_id: UUID | null;
   round_number: number;
   status: string;
   result: string | null;
@@ -526,6 +530,8 @@ export interface Revision {
   task_name: string | null;
   project_name: string | null;
   release_name: string | null;
+  project_id: UUID | null;
+  release_id: UUID | null;
   revision_number: number;
   reason: string;
   category: string;

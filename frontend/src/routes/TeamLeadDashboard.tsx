@@ -2,6 +2,7 @@
  * The Team Lead's view (spec section 24): my releases, my team, my queue.
  */
 
+import { RecordLink } from "@/components/RecordLink";
 import { CalendarClock, ClipboardCheck, Layers, Users } from "lucide-react";
 
 import { TaskTable } from "@/components/TaskTable";
@@ -172,9 +173,13 @@ export default function TeamLeadDashboard() {
                   <div key={release.id} className="px-4 py-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-ink-900">
+                        <RecordLink
+                          kind="release"
+                          id={release.id}
+                          className="block truncate text-sm font-medium text-ink-900"
+                        >
                           {release.name}
-                        </p>
+                        </RecordLink>
                         <p className="font-mono text-2xs text-ink-400">
                           {release.code} · {release.project_code} · due{" "}
                           {shortDate(release.planned_end)}

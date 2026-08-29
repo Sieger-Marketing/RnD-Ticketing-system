@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 
 import { ChipFilter, FilterBar, Pagination, SearchInput } from "@/components/ui/Filters";
+import { RecordLink } from "@/components/RecordLink";
 import { Select } from "@/components/ui/form";
 import {
   EmptyState,
@@ -177,12 +178,14 @@ export default function Releases() {
                         </div>
                       </td>
                       <td className="td text-xs text-ink-600">
-                        <div className="max-w-[12rem] truncate">
+                        <RecordLink
+                          kind="project"
+                          id={release.project_id}
+                          className="block max-w-[12rem] truncate"
+                          title={release.project_code ?? undefined}
+                        >
                           {release.project_name ?? DASH}
-                        </div>
-                        <div className="font-mono text-2xs text-ink-400">
-                          {release.project_code}
-                        </div>
+                        </RecordLink>
                       </td>
                       <td className="td text-xs text-ink-600">
                         <LeadCell release={release} />

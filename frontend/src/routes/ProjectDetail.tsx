@@ -6,6 +6,7 @@ import { ArrowLeft, Check, GitBranch, Pencil, Plus, RefreshCw, Trash2 } from "lu
 import { type ChangeEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { RecordLink } from "@/components/RecordLink";
 import { DeleteEntityDialog } from "@/components/DeleteEntityDialog";
 import { ProjectCreateModal } from "@/components/ProjectCreateModal";
 import { ApplyStandardModal } from "@/components/ApplyStandardModal";
@@ -352,9 +353,13 @@ export default function ProjectDetail() {
                         {release.sequence_number}
                       </td>
                       <td className="td max-w-[16rem]">
-                        <div className="truncate font-medium text-ink-900">
+                        <RecordLink
+                          kind="release"
+                          id={release.id}
+                          className="block truncate font-medium text-ink-900"
+                        >
                           {release.name}
-                        </div>
+                        </RecordLink>
                         <div className="font-mono text-2xs text-ink-400">
                           {release.code} · {release.task_count} task
                           {release.task_count === 1 ? "" : "s"}

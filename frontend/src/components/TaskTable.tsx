@@ -26,6 +26,7 @@ import {
   Spinner,
   StatusBadge,
 } from "@/components/ui/primitives";
+import { RecordLink } from "@/components/RecordLink";
 import { ResponsiveTable, type Column } from "@/components/ui/ResponsiveTable";
 import {
   useAssignTaskById,
@@ -161,6 +162,13 @@ export function TaskTable({
   const rows = maxRows ? tasks.slice(0, maxRows) : tasks;
   const wanted = new Set(columns);
 
+  // A screen asking for the project column has already said where it wants the
+  // project; repeating it under the task name puts the same words twice in one
+  // row. Same for the release. `knows` covers what the PAGE establishes, this
+  // covers what the TABLE is already showing.
+  const showProject = knows === "none" && !wanted.has("project");
+  const showRelease = knows !== "release";
+
   const all: Record<TaskColumn, Column<TaskSummary>> = {
     code: {
       key: "code",
@@ -189,15 +197,19 @@ export function TaskTable({
           {/* Where the work lives, in the words the team use for it. The type
               is kept, after it, because it is the least of the three. */}
           <span className="block truncate text-2xs text-ink-500">
-            {[
-              knows === "none" ? t.project_name : null,
-              knows === "release" ? null : t.release_name,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-            {(knows === "release" ||
-              (!t.project_name && !t.release_name)) && t.task_type}
-            {knows !== "release" &&
+            {showProject && t.project_name && (
+              <RecordLink kind="project" id={t.project_id}>
+                {t.project_name}
+              </RecordLink>
+            )}
+            {showProject && t.project_name && t.release_name && " · "}
+            {showRelease && t.release_name && (
+              <RecordLink kind="release" id={t.release_id}>
+                {t.release_name}
+              </RecordLink>
+            )}
+            {(!showRelease || (!showProject && !t.release_name)) && t.task_type}
+            {showRelease &&
               (t.project_name || t.release_name) &&
               t.task_type && (
                 <span className="text-ink-400"> · {t.task_type}</span>
@@ -221,12 +233,14 @@ export function TaskTable({
       // predates project_name is restarted.
       cell: (t) =>
         t.project_name || t.project_code ? (
-          <span
+          <RecordLink
+            kind="project"
+            id={t.project_id}
             className="block truncate text-xs text-ink-800"
             title={t.project_code ?? undefined}
           >
             {t.project_name ?? t.project_code}
-          </span>
+          </RecordLink>
         ) : (
           <span className="text-xs text-ink-400">{DASH}</span>
         ),

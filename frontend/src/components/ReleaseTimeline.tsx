@@ -7,6 +7,7 @@
  */
 
 import clsx from "clsx";
+import { RecordLink } from "@/components/RecordLink";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
 import { EmptyState, HealthPill } from "@/components/ui/primitives";
@@ -103,9 +104,14 @@ export function ReleaseTimeline({
               onClick={onSelect ? () => onSelect(release.id) : undefined}
             >
               <div className="w-56 shrink-0">
-                <p className="truncate text-xs font-medium text-ink-900" title={release.name}>
+                <RecordLink
+                  kind="release"
+                  id={release.id}
+                  className="block truncate text-xs font-medium text-ink-900"
+                  title={release.name}
+                >
                   {release.name}
-                </p>
+                </RecordLink>
                 <p className="font-mono text-2xs text-ink-400">{release.code}</p>
               </div>
 

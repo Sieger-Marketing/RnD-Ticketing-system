@@ -6,6 +6,7 @@
  * department is heading, not what any individual is doing today.
  */
 
+import { RecordLink } from "@/components/RecordLink";
 import {
   Bar,
   BarChart,
@@ -367,7 +368,13 @@ export default function ExecutiveDashboard() {
               <div key={project.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-ink-900">{project.name}</p>
+                    <RecordLink
+                      kind="project"
+                      id={project.id}
+                      className="block text-sm font-medium text-ink-900"
+                    >
+                      {project.name}
+                    </RecordLink>
                     <p className="font-mono text-2xs text-ink-400">
                       {project.code} · {project.customer ?? DASH}
                     </p>

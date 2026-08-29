@@ -3,6 +3,7 @@
  */
 
 import clsx from "clsx";
+import { RecordLink } from "@/components/RecordLink";
 import { AlertTriangle, Ban, ClipboardCheck, FolderKanban, Layers } from "lucide-react";
 
 import { CapacityHeatmap } from "@/components/CapacityHeatmap";
@@ -200,12 +201,14 @@ export default function ManagerDashboard() {
                     {data.overdue_tasks.slice(0, 15).map((task) => (
                       <tr key={task.id} className="hover:bg-ink-50">
                         <td className="td max-w-[18rem]">
-                          <div className="truncate font-medium text-ink-900">
+                          <RecordLink
+                            kind="task"
+                            id={task.id}
+                            className="block truncate font-medium text-ink-900"
+                            title={task.code}
+                          >
                             {task.name}
-                          </div>
-                          <div className="font-mono text-2xs text-ink-400">
-                            {task.code}
-                          </div>
+                          </RecordLink>
                         </td>
                         <td className="td text-xs">
                           {task.assigned_to_name ?? (
@@ -262,9 +265,13 @@ export default function ManagerDashboard() {
                     {data.release_progress.map((r) => (
                       <tr key={r.id} className="hover:bg-ink-50">
                         <td className="td max-w-[18rem]">
-                          <div className="truncate font-medium text-ink-900">
+                          <RecordLink
+                            kind="release"
+                            id={r.id}
+                            className="block truncate font-medium text-ink-900"
+                          >
                             {r.name}
-                          </div>
+                          </RecordLink>
                           <div className="font-mono text-2xs text-ink-400">
                             {r.code} · {r.project_code}
                           </div>

@@ -21,6 +21,7 @@ import { AlertTriangle, CheckCircle2, ClipboardCheck, RotateCcw } from "lucide-r
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { RecordLink } from "@/components/RecordLink";
 import { Pagination } from "@/components/ui/Filters";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
@@ -232,9 +233,14 @@ export default function Reviews() {
                       {review.task_name}
                     </p>
                     <p className="truncate text-2xs text-ink-500" title={review.task_code ?? undefined}>
-                      {[review.project_name, review.release_name]
-                        .filter(Boolean)
-                        .join(" · ") || review.task_code}
+                      <RecordLink kind="project" id={review.project_id}>
+                        {review.project_name}
+                      </RecordLink>
+                      {review.project_name && review.release_name && " · "}
+                      <RecordLink kind="release" id={review.release_id}>
+                        {review.release_name}
+                      </RecordLink>
+                      {!review.project_name && !review.release_name && review.task_code}
                       <span className="text-ink-400">
                         {" "}· round {review.round_number} · waiting{" "}
                         {relative(review.submitted_at)}

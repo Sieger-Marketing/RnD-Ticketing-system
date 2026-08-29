@@ -12,6 +12,7 @@ import { AlertTriangle, LayoutGrid, List } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
+import { RecordLink } from "@/components/RecordLink";
 import { Field, FormError, Select, TextArea } from "@/components/ui/form";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -271,9 +272,14 @@ export default function Kanban() {
                       {task.name}
                     </p>
                     <p className="mt-0.5 truncate text-2xs text-ink-500" title={task.code}>
-                      {[task.project_name, task.release_name]
-                        .filter(Boolean)
-                        .join(" · ") || task.code}
+                      <RecordLink kind="project" id={task.project_id}>
+                        {task.project_name}
+                      </RecordLink>
+                      {task.project_name && task.release_name && " · "}
+                      <RecordLink kind="release" id={task.release_id}>
+                        {task.release_name}
+                      </RecordLink>
+                      {!task.project_name && !task.release_name && task.code}
                     </p>
 
                     {task.blocker_reason && (
