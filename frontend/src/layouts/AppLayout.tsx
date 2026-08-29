@@ -298,10 +298,16 @@ function RunningTimer() {
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-signal-600" />
       <Link
         to={`/tasks/${data.task_id}`}
-        className="hidden max-w-[9rem] truncate text-xs text-signal-700 hover:underline sm:block"
-        title={data.task_name ?? undefined}
+        className="hidden max-w-[11rem] truncate text-xs text-signal-700 hover:underline sm:block"
+        // The chip is narrow, so it carries the release -- the part that says
+        // which piece of work -- and the full path waits in the tooltip.
+        title={
+          [data.project_name, data.release_name, data.task_name]
+            .filter(Boolean)
+            .join(" · ") || undefined
+        }
       >
-        {data.task_code}
+        {data.release_name ?? data.task_name ?? data.task_code}
       </Link>
       <span className="font-mono text-xs tabular text-signal-700">
         {h}:{String(m).padStart(2, "0")}

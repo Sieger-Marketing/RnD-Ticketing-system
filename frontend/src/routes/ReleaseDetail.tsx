@@ -367,6 +367,7 @@ export default function ReleaseDetail() {
           {tasks.isLoading && <SkeletonRows rows={5} />}
           {tasks.data && (
             <TaskTable
+              knows="release"
               tasks={taskList}
               columns={[
                 "code",

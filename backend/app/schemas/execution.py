@@ -138,6 +138,10 @@ class ReviewOut(ORMModel):
     task_id: uuid.UUID
     task_code: str | None = None
     task_name: str | None = None
+    #: Which project and design release the task sits in. "Concept" is the name
+    #: of five tasks on every release; on its own it identifies nothing.
+    project_name: str | None = None
+    release_name: str | None = None
     release_id: uuid.UUID | None = None
     project_id: uuid.UUID | None = None
     round_number: int
@@ -159,6 +163,8 @@ class ReviewOut(ORMModel):
             code=r.code,
             task_id=r.task_id,
             task_code=r.task.code if r.task else None,
+            project_name=(r.task.project.name if r.task and r.task.project else None),
+            release_name=(r.task.release.name if r.task and r.task.release else None),
             task_name=r.task.name if r.task else None,
             release_id=r.release_id,
             project_id=r.project_id,
@@ -198,6 +204,10 @@ class RevisionOut(ORMModel):
     task_id: uuid.UUID
     task_code: str | None = None
     task_name: str | None = None
+    #: Which project and design release the task sits in. "Concept" is the name
+    #: of five tasks on every release; on its own it identifies nothing.
+    project_name: str | None = None
+    release_name: str | None = None
     release_id: uuid.UUID | None = None
     project_id: uuid.UUID | None = None
     revision_number: int
@@ -221,6 +231,8 @@ class RevisionOut(ORMModel):
             code=r.code,
             task_id=r.task_id,
             task_code=r.task.code if r.task else None,
+            project_name=(r.task.project.name if r.task and r.task.project else None),
+            release_name=(r.task.release.name if r.task and r.task.release else None),
             task_name=r.task.name if r.task else None,
             release_id=r.release_id,
             project_id=r.project_id,

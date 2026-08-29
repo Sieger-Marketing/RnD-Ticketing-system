@@ -231,9 +231,14 @@ export default function Reviews() {
                     <p className="truncate text-sm font-medium text-ink-900">
                       {review.task_name}
                     </p>
-                    <p className="font-mono text-2xs text-ink-400">
-                      {review.task_code} · round {review.round_number} · waiting{" "}
-                      {relative(review.submitted_at)}
+                    <p className="truncate text-2xs text-ink-500" title={review.task_code ?? undefined}>
+                      {[review.project_name, review.release_name]
+                        .filter(Boolean)
+                        .join(" · ") || review.task_code}
+                      <span className="text-ink-400">
+                        {" "}· round {review.round_number} · waiting{" "}
+                        {relative(review.submitted_at)}
+                      </span>
                     </p>
                     {review.comments && (
                       <p className="mt-0.5 max-w-xl text-xs text-ink-600">

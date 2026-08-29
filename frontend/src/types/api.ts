@@ -504,6 +504,8 @@ export interface Review {
   task_id: UUID;
   task_code: string | null;
   task_name: string | null;
+  project_name: string | null;
+  release_name: string | null;
   round_number: number;
   status: string;
   result: string | null;
@@ -522,6 +524,8 @@ export interface Revision {
   task_id: UUID;
   task_code: string | null;
   task_name: string | null;
+  project_name: string | null;
+  release_name: string | null;
   revision_number: number;
   reason: string;
   category: string;

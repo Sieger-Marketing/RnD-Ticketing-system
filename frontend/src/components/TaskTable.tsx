@@ -132,6 +132,7 @@ export function TaskTable({
   emptyTitle = "No tasks",
   emptyDescription,
   maxRows,
+  knows = "none",
 }: {
   tasks: TaskSummary[];
   columns?: TaskColumn[];
@@ -139,6 +140,14 @@ export function TaskTable({
   emptyTitle?: string;
   emptyDescription?: string;
   maxRows?: number;
+  /**
+   * What the surrounding page already tells the reader, so the row does not
+   * repeat it. On a release page the release is on the heading; on a project
+   * page the project is. Everywhere else -- My Work, Tasks, the board -- the
+   * reader has neither, and "Concept" is the name of five tasks on every
+   * release.
+   */
+  knows?: "project" | "release" | "none";
 }) {
   // task.assign specifically, not "assign or reassign": the picker loads the
   // assignment board, which requires task.assign on its own. Gating on either
@@ -177,7 +186,23 @@ export function TaskTable({
               />
             )}
           </div>
-          <span className="text-2xs text-ink-400">{t.task_type}</span>
+          {/* Where the work lives, in the words the team use for it. The type
+              is kept, after it, because it is the least of the three. */}
+          <span className="block truncate text-2xs text-ink-500">
+            {[
+              knows === "none" ? t.project_name : null,
+              knows === "release" ? null : t.release_name,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+            {(knows === "release" ||
+              (!t.project_name && !t.release_name)) && t.task_type}
+            {knows !== "release" &&
+              (t.project_name || t.release_name) &&
+              t.task_type && (
+                <span className="text-ink-400"> · {t.task_type}</span>
+              )}
+          </span>
         </>
       ),
     },

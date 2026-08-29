@@ -217,8 +217,13 @@ export default function Revisions() {
                           <div className="truncate font-medium text-ink-900">
                             {revision.task_name}
                           </div>
-                          <div className="font-mono text-2xs text-ink-400">
-                            {revision.task_code}
+                          <div
+                            className="truncate text-2xs text-ink-500"
+                            title={revision.task_code ?? undefined}
+                          >
+                            {[revision.project_name, revision.release_name]
+                              .filter(Boolean)
+                              .join(" · ") || revision.task_code}
                           </div>
                         </td>
                         <td className="td text-xs tabular">{revision.revision_number}</td>

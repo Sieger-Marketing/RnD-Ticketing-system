@@ -270,8 +270,10 @@ export default function Kanban() {
                     <p className="text-xs font-medium leading-snug text-ink-900">
                       {task.name}
                     </p>
-                    <p className="mt-0.5 font-mono text-2xs text-ink-400">
-                      {task.code} · {task.project_code}
+                    <p className="mt-0.5 truncate text-2xs text-ink-500" title={task.code}>
+                      {[task.project_name, task.release_name]
+                        .filter(Boolean)
+                        .join(" · ") || task.code}
                     </p>
 
                     {task.blocker_reason && (
