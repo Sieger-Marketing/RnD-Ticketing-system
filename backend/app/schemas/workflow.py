@@ -481,6 +481,10 @@ class TaskSummary(ORMModel):
     project_name: str | None = None
     release_id: uuid.UUID
     release_code: str | None = None
+    #: The design release this task belongs to, by name -- Structures, Platforms
+    #: Assy, and the rest of the DSQ list. Together with the project name it is
+    #: how the team actually refer to a piece of work; DR-00559 is not.
+    release_name: str | None = None
     name: str
     task_type: str
     status: str

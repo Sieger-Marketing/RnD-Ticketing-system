@@ -139,7 +139,10 @@ export default function Timesheet() {
             <span className="flex h-2 w-2 animate-pulse rounded-full bg-signal-600" />
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink-900">
-                Timer running on {running.data.task_code}
+                Timer running on{" "}
+                {[running.data.project_name, running.data.release_name]
+                  .filter(Boolean)
+                  .join(" · ") || running.data.task_code}
               </p>
               <p className="truncate text-xs text-ink-600">{running.data.task_name}</p>
             </div>
@@ -250,24 +253,25 @@ export default function Timesheet() {
             columns={[
               {
                 key: "task",
-                header: "Task",
+                header: "Work",
                 mobile: "primary",
                 cell: (e) => (
                   <Link
                     to={`/tasks/${e.task_id}`}
-                    className="truncate text-signal-700 hover:underline"
+                    className="block min-w-0 text-signal-700 hover:underline"
                     onClick={(event) => event.stopPropagation()}
+                    title={e.task_code ?? undefined}
                   >
-                    {e.task_name}
+                    <span className="block truncate">
+                      {e.project_name ?? "No project"}
+                      {e.release_name && (
+                        <span className="text-ink-500"> · {e.release_name}</span>
+                      )}
+                    </span>
+                    <span className="block truncate text-2xs text-ink-500">
+                      {e.task_name}
+                    </span>
                   </Link>
-                ),
-              },
-              {
-                key: "code",
-                header: "Code",
-                mobile: "meta",
-                cell: (e) => (
-                  <span className="font-mono text-2xs text-ink-400">{e.task_code}</span>
                 ),
               },
               {
@@ -410,7 +414,9 @@ export default function Timesheet() {
               <option value="">Choose a task</option>
               {(myWork.data ?? []).map((task) => (
                 <option key={task.id} value={task.id}>
-                  {task.code} — {task.name}
+                  {[task.project_name, task.release_name, task.name]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </option>
               ))}
             </select>

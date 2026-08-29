@@ -48,7 +48,12 @@ class TimeEntryOut(ORMModel):
     user_id: uuid.UUID
     user_name: str | None = None
     project_id: uuid.UUID | None = None
+    #: A timesheet row that says TSK-002052 asks the reader to hold a code table
+    #: in their head. "Kumaran Medical Centre / Structures" is what they booked
+    #: the time against.
+    project_name: str | None = None
     release_id: uuid.UUID | None = None
+    release_name: str | None = None
     entry_date: date
     started_at: datetime | None = None
     ended_at: datetime | None = None
@@ -70,7 +75,15 @@ class TimeEntryOut(ORMModel):
             user_id=e.user_id,
             user_name=e.user.full_name if e.user else None,
             project_id=e.project_id,
+            # Read through the task rather than off the entry: the entry stores
+            # the ids for reporting, but only the task carries the objects.
+            project_name=(
+                e.task.project.name if e.task and e.task.project else None
+            ),
             release_id=e.release_id,
+            release_name=(
+                e.task.release.name if e.task and e.task.release else None
+            ),
             entry_date=e.entry_date,
             started_at=e.started_at,
             ended_at=e.ended_at,

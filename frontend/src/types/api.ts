@@ -410,6 +410,7 @@ export interface TaskSummary {
   project_name: string | null;
   release_id: UUID;
   release_code: string | null;
+  release_name: string | null;
   name: string;
   task_type: string;
   status: TaskStatus;
@@ -481,6 +482,9 @@ export interface TimeEntry {
   task_id: UUID;
   task_code: string | null;
   task_name: string | null;
+  /** Where the time went, in the words the team use for it. */
+  project_name: string | null;
+  release_name: string | null;
   user_id: UUID;
   user_name: string | null;
   entry_date: ISODate;

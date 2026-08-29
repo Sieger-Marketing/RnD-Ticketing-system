@@ -73,6 +73,7 @@ def task_summary(task: Task, today: date | None = None) -> TaskSummary:
         project_name=task.project.name if task.project else None,
         release_id=task.release_id,
         release_code=task.release.code if task.release else None,
+        release_name=task.release.name if task.release else None,
         name=task.name,
         task_type=task.task_type,
         status=task.status,
