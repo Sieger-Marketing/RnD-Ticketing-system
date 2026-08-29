@@ -58,7 +58,17 @@ if ($Lan) {
         Select-Object -First 1).IPAddress
     if ($lanIp) { Write-Host "The office reaches it at http://${lanIp}:${Port}" }
 }
-$funnel = & tailscale funnel status 2>$null | Select-String -Pattern 'https://\S+\.ts\.net' |
-    Select-Object -First 1
-if ($funnel) { Write-Host "Published at $($funnel.Matches[0].Value) while the Tailscale Funnel is on." }
+# Guarded twice over: this script runs with ErrorActionPreference = Stop, so on
+# a machine with no tailscale on PATH an unguarded call is a terminating error
+# and the portal never starts -- a startup message taking down the server it
+# was describing.
+if (Get-Command tailscale -ErrorAction SilentlyContinue) {
+    try {
+        $funnel = & tailscale funnel status 2>$null |
+            Select-String -Pattern 'https://\S+\.ts\.net' | Select-Object -First 1
+        if ($funnel) {
+            Write-Host "Published at $($funnel.Matches[0].Value) while the Tailscale Funnel is on."
+        }
+    } catch { }
+}
 & $python -m uvicorn app.main:app --host $listen --port $Port
