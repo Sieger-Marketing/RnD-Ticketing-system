@@ -6,15 +6,15 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://desktop-h993ees.tailc2b13d.ts.net/api/:path*"
+      "destination": "https://u1-l-2rkv8f4.tailc2b13d.ts.net/api/:path*"
     },
     {
       "source": "/health",
-      "destination": "https://desktop-h993ees.tailc2b13d.ts.net/health"
+      "destination": "https://u1-l-2rkv8f4.tailc2b13d.ts.net/health"
     },
     {
       "source": "/health/:path*",
-      "destination": "https://desktop-h993ees.tailc2b13d.ts.net/health/:path*"
+      "destination": "https://u1-l-2rkv8f4.tailc2b13d.ts.net/health/:path*"
     },
     {
       "source": "/((?!assets/).*)",
