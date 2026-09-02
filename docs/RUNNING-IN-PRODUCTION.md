@@ -1,9 +1,11 @@
 # Running this in production
 
-The department's data lives in PostgreSQL on a machine Sieger owns, and it
-lives nowhere else. That is a deliberate decision, and everything below follows
-from it — including the two things it costs you, which are covered under
-[Availability](#availability-is-one-machines-uptime) and [Backups](#backups).
+The department's data lives in PostgreSQL on a machine Sieger owns, and nowhere
+else. Everything below follows from that — including the one risk it leaves
+open, under [Backups](#backups).
+
+Migrated from a laptop to a dedicated server on 31 August 2026. That laptop is
+now a development machine and nothing here depends on it.
 
 ## The shape
 
@@ -12,254 +14,270 @@ from it — including the two things it costs you, which are covered under
         |
         |  HTTPS
         v
-  rn-d-ticketing-system.vercel.app ....  the address the team knows.
-        |                                Vercel serves the built app and
-        |  rewrites /api/* and /health*  rewrites the API through, so the
+  rn-d-ticketing-system.vercel.app ....  the address the team uses. Vercel
+        |                                serves the built app and rewrites
+        |  rewrites /api/* and /health*  /api through to the tunnel, so the
         v                                browser only ever sees one origin.
-  Tailscale Funnel  ..................   https://<machine>.<tailnet>.ts.net
-        |                                a real certificate, no open ports
+  desktop-h993ees.tailc2b13d.ts.net ...  Tailscale Funnel on the server itself.
+        |                                A real certificate, no open ports.
         |  localhost
         v
   FastAPI (uvicorn)  .................   the API, and the built app as well
-        |
-        |  localhost:5432, never leaves the machine
+        |                                192.168.2.253:8000
+        |  localhost:5432
         v
-  PostgreSQL  ........................   the department's data
+  PostgreSQL 18  .....................   the department's data
 ```
 
-Two things are worth understanding about this.
+**The office has a second way in that skips all of it.** The API binds
+`0.0.0.0`, so anyone on the office network can reach `http://192.168.2.253:8000`
+directly. If Vercel or the tunnel is having a bad day, the department is not
+blocked — which is worth knowing before anyone panics.
 
 **The API address is not baked into the build.** It is a rewrite in
-`frontend/vercel.json`. If the tunnel name ever changes, that is one line and a
-redeploy of a static site — not a rebuild with a new `VITE_API_BASE_URL`. It
-also means the browser makes same-origin requests, so there is no CORS
-preflight and no allow-list to keep in step.
+`frontend/vercel.json`. If the tunnel name changes, that is one line and a
+redeploy of a static site, not a rebuild.
 
-**The app is reachable two ways.** Through Vercel, and directly at the
-`ts.net` address, because the API process also serves `frontend/dist`
-(`app/main.py`). The direct address is the one to use when checking whether the
-machine itself is healthy, since it bypasses Vercel entirely.
+## The machine
 
-## Availability is one machine's uptime
-
-Everything except the static frontend runs on the host machine. So:
-
-> **The portal is down whenever that machine is asleep, shut down, or off the
-> network.**
-
-It does not fail cleanly. Vercel keeps serving the page from its CDN, so the
-site still loads, users still see a login screen, and then every request times
-out. It reads like a broken application rather than a machine that is off.
-
-Three consequences worth acting on:
-
-* **A laptop is the wrong host.** Sleep, lid-close, being carried home and
-  shut — each one is an outage. Use a machine that stays on: a mini PC, a spare
-  desktop, or a server. Nothing about the setup changes; it is the same folder
-  and the same steps on a machine that does not sleep.
-* **The API must start by itself.** PostgreSQL and Tailscale are both
-  `Automatic` Windows services and come back after a reboot on their own. The
-  API does not, unless installed to. `scripts\install-autostart.ps1` does that.
-* **Nothing else may serve this application.** If a second deployment exists
-  anywhere, it has its own database, and anyone reaching it enters work that
-  will never appear here. Shut down any old hosting rather than leaving it
-  running.
-
-## One-time setup on the host machine
-
-### 1. A scratch database for the tests
-
-The suite writes projects, users and time entries and deletes none of them, so
-it must never point at the live database — `tests/conftest.py` refuses to start
-if it does. Give it its own database. In psql as a superuser:
-
-```sql
-CREATE DATABASE designops_test OWNER designops;
-```
-
-Then run the suite against it:
-
-```
-set TEST_DATABASE_URL=postgresql+psycopg://designops:PASSWORD@127.0.0.1:5432/designops_test
-.venv\Scripts\python -m pytest
-```
-
-The fixtures migrate and seed that database themselves on first run.
-
-### 2. Clear out test debris
-
-A database used for development carries the demo department the seed invents
-and the projects the suite leaves behind. Check what would go, then remove it:
-
-```
-.venv\Scripts\python scripts\reset_to_live_data.py
-.venv\Scripts\python scripts\reset_to_live_data.py --apply
-```
-
-An administrator can do the same through the app — `POST
-/api/admin/purge-demo-data`, which reads only until given `?apply=true` — for a
-deployment where no shell is available.
-
-Take a backup first (see [Backups](#backups)).
-
-### 3. Build the app
-
-The API serves it, so it has to exist:
-
-```
-cd frontend
-npm install
-npm run build
-```
-
-### 4. Publish it
-
-Tailscale is the least exposed way to do this: the machine dials out, so no
-router change and no inbound firewall rule, and the name it gets is stable.
-
-Funnel has to be permitted for the tailnet once, in the admin console under
-**Access controls**, by adding:
-
-```json
-"nodeAttrs": [
-  { "target": ["autogroup:member"], "attr": ["funnel"] }
-]
-```
-
-Then, on the machine:
-
-```
-tailscale funnel --bg 8000
-tailscale funnel status
-```
-
-That publishes `http://127.0.0.1:8000` at `https://<machine>.<tailnet>.ts.net`
-with a real certificate. Nothing else on the machine becomes reachable.
-
-For this department that address is:
-
-    https://u1-l-2rkv8f4.tailc2b13d.ts.net
-
-It is also the `destination` in `frontend/vercel.json`. If it changes, change
-it there too.
-
-### 5. Make it start by itself, and back itself up
-
-From `backend\`, in an **elevated** PowerShell:
-
-```
-.\scripts\install-autostart.ps1 -BackupTo E:\Backups
-```
-
-That registers two scheduled tasks and adjusts power settings:
-
-| What | Effect |
+| | |
 |---|---|
-| `DesignOps API` | Runs `scripts\run-service.ps1` at boot, as SYSTEM. Migrates, then serves, then restarts the server if it exits. |
-| `DesignOps Database Backup` | Nightly `pg_dump`, rotated. |
-| Power | Sleep and hibernate off on AC; lid-close does nothing on AC. |
+| Address | `192.168.2.253`, **static** — confirmed with IT, not a DHCP lease |
+| Tailnet name | `desktop-h993ees` |
+| Public address | `https://desktop-h993ees.tailc2b13d.ts.net` |
+| Repo | `D:\Design-Ops-System` |
+| Database | PostgreSQL 18, database `designops`, schema at `c3e8a5d17b40` |
+| Python | **3.12** — 3.14 is also installed, see the warning below |
+| Disk | One physical SSD, partitioned C: and D: |
 
-Both tasks run as SYSTEM, which needs no stored password and survives the user
-logging off. Undo the whole thing with `-Uninstall`.
+### Python: use 3.12 explicitly
 
-Start it without rebooting, and check:
-
-```
-Start-ScheduledTask -TaskName 'DesignOps API'
-curl http://127.0.0.1:8000/health/db
-```
-
-## Backups
-
-There is one copy of the department's data. A failed disk loses every project,
-release, task and timesheet recorded since go-live, with nothing to restore
-from. The nightly task installed above is what stands between you and that.
+Both 3.12 and 3.14 are installed. `python` resolves to **3.14**, and
+`requirements.txt` pins packages with no 3.14 wheels — `pip install` would try
+to compile from source and fail confusingly. Always:
 
 ```
-.\scripts\backup-db.ps1 -Destination E:\Backups -KeepDays 14
+py -3.12 -m venv .venv
 ```
 
-**`-Destination` must be a different physical disk, or a network share.** A
-backup sitting beside the database survives an accidental delete but not a dead
-drive, and the dead drive is the failure that actually costs you the year.
+The existing `.venv` is already 3.12; this matters only when rebuilding it.
 
-The script reads the connection details from `.env`, so it cannot drift onto a
-different database from the one the app uses. It fails loudly rather than
-quietly rotating good backups out in favour of a bad one: a non-zero `pg_dump`
-exit, or a dump too small to be real, is treated as failure.
+### PowerShell execution policy
 
-Check it after installing, and then occasionally:
+A fresh Windows install refuses to run `.ps1` files. The scheduled tasks are
+unaffected — they pass `-ExecutionPolicy Bypass` — but running anything by hand
+needs this once per machine:
 
 ```
-Get-Content backend\logs\backup.log -Tail 20
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
-### Restoring
+## What runs, and when
 
-A backup nobody has restored is a hypothesis. Test it into a scratch database
-rather than the live one:
+Three scheduled tasks, all as SYSTEM, registered by
+`scripts\install-autostart.ps1`. SYSTEM needs no stored password and survives
+the user logging off.
 
-```
-createdb -U postgres -O designops designops_restore_test
-pg_restore -U designops -h 127.0.0.1 -d designops_restore_test --no-owner "E:\Backups\designops_<stamp>.dump"
-```
+| Task | Trigger | What it does |
+|---|---|---|
+| `DesignOps API` | At startup | Migrates, bootstraps, serves on `0.0.0.0:8000`, restarts the server if it exits |
+| `DesignOps Database Backup` | 20:00 daily | `pg_dump` with rotation |
+| `DesignOps Nightly Refresh` | 06:30 daily | Re-rates delay days and RAG health against today's date |
 
-To see what a dump contains without restoring it:
+The nightly refresh is the one that fails invisibly. Nothing about a release
+changes when it slips past its date overnight, so without it the portal keeps
+showing yesterday's colours and looks perfectly healthy while doing so.
 
-```
-pg_restore --list "E:\Backups\designops_<stamp>.dump"
-```
+Also set by the installer: sleep and hibernate disabled on AC, and a firewall
+rule allowing inbound TCP 8000 so the office can reach it. A SYSTEM task gets
+no "allow this app?" prompt, so without that rule the server listens and
+nobody can connect.
 
-Restoring over the live database is a deliberate, destructive act — stop the
-`DesignOps API` task first, so the application is not writing while you do it.
-
-## Daily operation
-
-Nothing, if the tasks are installed. To run it in the foreground instead — for
-debugging, or on a machine where you have not installed the task:
-
-```
-cd backend
-.\scripts\serve.ps1
-```
-
-`serve.ps1` is the interactive version: it applies migrations, builds the
-frontend if the build is missing, and serves on `127.0.0.1:8000`. Add `-Lan` to
-also answer on the office network, which is useful when the Funnel is down and
-people are in the building.
-
-Logs from the scheduled task:
+## Deploying a change
 
 ```
-backend\logs\service-<date>.log
-backend\logs\backup.log
+laptop  →  git push  →  GitHub  →  Vercel (frontend, automatic)
+                             └──→  server: git pull + restart the task
 ```
+
+**Frontend only** — Vercel rebuilds on push, nothing to do on the server.
+
+**Backend** — on the server:
+
+```
+cd D:\Design-Ops-System; git pull
+Stop-ScheduledTask -TaskName 'DesignOps API'; Start-Sleep 3; Start-ScheduledTask -TaskName 'DesignOps API'
+```
+
+The server also serves its own copy of the frontend as the office-direct
+fallback, so run `npm run build` there too when the UI changes, or that path
+serves an older bundle than Vercel does.
+
+**Migrations run automatically** at task start, followed by the bootstrap that
+applies new permissions, roles and settings. Both are idempotent.
+
+## Checking it
 
 Three probes, in order of how much they tell you:
 
 | Probe | Answers |
 |---|---|
-| `https://rn-d-ticketing-system.vercel.app/health` | the whole path works, end to end |
-| `https://u1-l-2rkv8f4.tailc2b13d.ts.net/health` | the machine and tunnel are up; Vercel is not in the way |
-| `http://127.0.0.1:8000/health/db` | run on the host: the API is up and the database answers |
+| `https://rn-d-ticketing-system.vercel.app/health` | the whole chain works |
+| `https://desktop-h993ees.tailc2b13d.ts.net/health` | server and tunnel are up; Vercel is not in the way |
+| `http://192.168.2.253:8000/health/db` | the API is up and the database answers |
 
-The first is the one to point an uptime monitor at, because it is the only one
-that fails when any part of the chain does.
+**Point an uptime monitor at the first one.** It is the only one that fails
+when any part of the chain does — and the chain has already broken silently
+once, in a way where the page still loaded and only the data was missing.
+Nobody reported it.
+
+Logs on the server:
+
+```
+D:\Design-Ops-System\backend\logs\service-<date>.log
+D:\Design-Ops-System\backend\logs\backup.log
+```
+
+## Backups
+
+There is one copy of this data. The nightly task is what stands between you and
+losing every project, release, task and timesheet the department has recorded.
+
+```
+.\scripts\backup-db.ps1 -Destination D:\Backups -KeepDays 14
+```
+
+> **The open risk.** `D:\Backups` is on the **same physical SSD** as the
+> database — C: and D: are partitions of one disk. That survives an accidental
+> delete and not a failed drive, which is the failure that actually costs a
+> department its year. It needs a network share or a permanently connected USB
+> drive:
+>
+> ```
+> .\scripts\install-autostart.ps1 -BackupTo \\server\share\designops -Lan
+> ```
+>
+> The installer refuses a destination whose drive does not exist, so it cannot
+> silently register a task that fails every night — that mistake has been made
+> twice and is now impossible.
+
+The script reads its connection details from `.env`, so it cannot drift onto a
+different database from the one the app uses, and it fails loudly rather than
+rotating a good backup out in favour of a truncated one.
+
+### Restoring
+
+A backup nobody has restored is a hypothesis. Test into a scratch database:
+
+```
+pg_restore -U designops -h 127.0.0.1 -d designops_restore_test --no-owner "D:\Backups\designops_<stamp>.dump"
+```
+
+**Restoring over the live database has an order that matters.** Get it wrong
+and the restore silently does nothing:
+
+1. **Stop the API task first.** If it starts before the restore, it recreates
+   the schema and seeds permissions, roles and the admin user — and then every
+   `CREATE TABLE` collides and every `COPY` fails on duplicate keys. Several
+   hundred errors, an empty database, and an app that reports healthy.
+2. `DROP DATABASE designops; CREATE DATABASE designops OWNER designops;`
+3. `pg_restore` — expect **silence**. A wall of "already exists" means step 1
+   was missed.
+4. **Then** start the API task.
+5. Compare row counts against the source before trusting it.
 
 ## Settings that matter
 
-In `backend\.env`:
+In `backend\.env` on the server:
 
 | Setting | Why |
 |---|---|
 | `ENVIRONMENT=production` | turns on the startup check that refuses development defaults |
 | `DATABASE_URL` | must be set explicitly, even pointing at this machine |
 | `SECRET_KEY`, `JWT_SECRET` | anything starting `dev-only` is refused |
+| `JWT_SECRET` specifically | **must not be regenerated** — changing it signs every user out at once |
 | `SEED_DEFAULT_PASSWORD` | the published default is refused |
-| `FRONTEND_DIST_PATH` | where the built app is; when it exists this process serves it |
-| `FRONTEND_URL`, `EXTRA_CORS_ORIGINS`, `CORS_ORIGIN_REGEX` | the Vercel origins. Only consulted if a browser ever calls the API cross-origin; with the rewrite in place it does not. |
+| `FRONTEND_URL`, `EXTRA_CORS_ORIGINS`, `CORS_ORIGIN_REGEX` | only consulted if a browser calls the API cross-origin; with the rewrite in place it does not |
 
-A CORS mistake is worth recognising on sight: the API answers `curl` perfectly
-and fails in the browser with nothing useful in the network tab. It means the
-site's origin is not in the allowed list — including when it differs only by a
-trailing slash.
+## The network, and why this took a day
+
+The wired `192.168.2.x` network **blocked Tailscale** until IT allowed it. The
+symptom was thoroughly misleading and will be again if it recurs:
+
+- TCP to `controlplane.tailscale.com:443` **connected**
+- The TLS request then **timed out** — no error, no response
+- Google, GitHub and Cloudflare all returned 200 from the same host at the same
+  moment
+- The identical request **succeeded** from the `192.168.0.x` wireless network
+- Tailscale's own log said `fetch control key: context deadline exceeded`
+
+Because the client could not reach its control plane, `tailscale up` hung with
+no output, the GUI's sign-in button opened nothing, and an auth key looked
+rejected. All of it read as a broken client. A clean reinstall changed nothing.
+
+**If Tailscale ever stops working here, test the control plane before touching
+the client:**
+
+```
+Test-NetConnection controlplane.tailscale.com -Port 443
+Invoke-WebRequest "https://controlplane.tailscale.com/key?v=142" -TimeoutSec 20 -UseBasicParsing
+```
+
+TCP true and HTTPS timing out is the signature. It is a firewall policy, not
+software.
+
+### Verifying a Funnel is actually public
+
+Fetching a `ts.net` address **from a machine on the tailnet proves nothing** —
+it resolves internally and returns 200 while the tunnel is invisible to the
+rest of the internet. Vercel is not on the tailnet, so it needs a public
+record. That distinction caused a live outage.
+
+The test that distinguishes them:
+
+```
+nslookup -type=A desktop-h993ees.tailc2b13d.ts.net 8.8.8.8
+curl --resolve desktop-h993ees.tailc2b13d.ts.net:443:<that address> https://desktop-h993ees.tailc2b13d.ts.net/health
+```
+
+Public A records mean it is genuinely published. Tailscale can take several
+minutes to publish them after Funnel is first enabled on a node. **Confirm this
+before pointing Vercel at a new tunnel, not after.**
+
+## The laptop
+
+`SPINSIEGER`, `192.168.0.10`. A development machine. Nothing in this system
+depends on it, and its `DesignOps API` task is stopped deliberately — it still
+holds a pre-cutover database, and two live copies is the one failure with no
+clean recovery.
+
+> **It also runs a different system.** `D:\mrm-prod` serves on port **8001**,
+> supervised by `D:\mrm-prod\run_backend.ps1`, and it is published on the
+> laptop's own Tailscale Funnel at `u1-l-2rkv8f4.tailc2b13d.ts.net`.
+>
+> **Do not clear that funnel.** It reads as a leftover from this project and is
+> not. Turning it off takes MRM off the internet; that has happened once.
+
+## Rollback
+
+The laptop still holds the database as it was at cutover. To fall back:
+
+1. Start the laptop's `DesignOps API` task
+2. Point the two `destination` lines in `frontend/vercel.json` at
+   `u1-l-2rkv8f4.tailc2b13d.ts.net`, commit and push
+
+Under two minutes. **This loses everything recorded on the server since
+cutover**, so take a dump from the server first — the laptop's copy is frozen
+at 31 August.
+
+## Disaster recovery
+
+Objective: back online within two hours, at most one day of data lost.
+
+- Restore the most recent dump onto the laptop and start its API task
+- Point `vercel.json` at the laptop's tunnel
+- Replace the hardware, then rebuild the server from this document
+
+That only holds while backups are current and restore-tested. Restore one into
+a scratch database monthly and note the result — and get them off that single
+disk.
