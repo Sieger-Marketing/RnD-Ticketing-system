@@ -7,6 +7,9 @@ open, under [Backups](#backups).
 Migrated from a laptop to a dedicated server on 31 August 2026. That laptop is
 now a development machine and nothing here depends on it.
 
+Moved from Tailscale Funnel to Cloudflare Tunnel on 3 September 2026, onto the
+company's own domain. Tailscale is no longer part of this system.
+
 ## The shape
 
 ```
@@ -14,13 +17,14 @@ now a development machine and nothing here depends on it.
         |
         |  HTTPS
         v
-  rn-d-ticketing-system.vercel.app ....  the address the team uses. Vercel
-        |                                serves the built app and rewrites
-        |  rewrites /api/* and /health*  /api through to the tunnel, so the
-        v                                browser only ever sees one origin.
-  desktop-h993ees.tailc2b13d.ts.net ...  Tailscale Funnel on the server itself.
-        |                                A real certificate, no open ports.
-        |  localhost
+  designops.siegerspintech.com ........  the address the team uses. Cloudflare
+        |                                terminates TLS at its nearest edge —
+        |                                Mumbai, from the office — and carries
+        |                                the request down the tunnel.
+        v
+  cloudflared (Windows service) .......  on the server. Outbound-only: it dials
+        |                                Cloudflare, so nothing is open inbound
+        |  localhost:8000                and no port is forwarded.
         v
   FastAPI (uvicorn)  .................   the API, and the built app as well
         |                                192.168.2.253:8000
@@ -29,22 +33,25 @@ now a development machine and nothing here depends on it.
   PostgreSQL 18  .....................   the department's data
 ```
 
-**The office has a second way in that skips all of it.** The API binds
-`0.0.0.0`, so anyone on the office network can reach `http://192.168.2.253:8000`
-directly. If Vercel or the tunnel is having a bad day, the department is not
-blocked — which is worth knowing before anyone panics.
+**The old Vercel address still works.** `rn-d-ticketing-system.vercel.app`
+serves the same bundle and rewrites `/api` and `/health` through to
+`designops.siegerspintech.com`, so nobody's bookmark breaks. It is one hop
+longer and measurably slower — roughly 0.5s against 0.2s — so prefer the direct
+address and treat Vercel as a fallback that happens to still be wired up.
 
-**The API address is not baked into the build.** It is a rewrite in
-`frontend/vercel.json`. If the tunnel name changes, that is one line and a
-redeploy of a static site, not a rebuild.
+**The office has a way in that skips all of it.** The API binds `0.0.0.0`, so
+anyone on the office network can reach `http://192.168.2.253:8000` directly. If
+Cloudflare is having a bad day, the department is not blocked — worth knowing
+before anyone panics.
 
 ## The machine
 
 | | |
 |---|---|
 | Address | `192.168.2.253`, **static** — confirmed with IT, not a DHCP lease |
-| Tailnet name | `desktop-h993ees` |
-| Public address | `https://desktop-h993ees.tailc2b13d.ts.net` |
+| Public address | `https://designops.siegerspintech.com` |
+| Tunnel | Cloudflare Tunnel `designops`, in the `dawn-haze-5b83` Zero Trust account |
+| Domain | `siegerspintech.com`, registered at GoDaddy, DNS at Cloudflare |
 | Repo | `D:\Design-Ops-System` |
 | Database | PostgreSQL 18, database `designops`, schema at `c3e8a5d17b40` |
 | Python | **3.12** — 3.14 is also installed, see the warning below |
@@ -93,6 +100,19 @@ rule allowing inbound TCP 8000 so the office can reach it. A SYSTEM task gets
 no "allow this app?" prompt, so without that rule the server listens and
 nobody can connect.
 
+**`cloudflared` is a Windows service, not a scheduled task.** It was installed
+by the connector command from the Cloudflare dashboard, starts at boot, and
+needs nobody logged in:
+
+```
+Get-Service cloudflared
+```
+
+That is the entire point of the move. The tunnel it replaced depended on
+`tailscale-ipn.exe`, a **GUI process** — when it stopped on 2 September the
+office kept working over the LAN while every remote user was locked out, and
+the portal looked healthy from inside the building the whole time.
+
 ## Deploying a change
 
 ```
@@ -100,21 +120,33 @@ laptop  →  git push  →  GitHub  →  Vercel (frontend, automatic)
                              └──→  server: git pull + restart the task
 ```
 
-**Frontend only** — Vercel rebuilds on push, nothing to do on the server.
-
-**Backend** — on the server:
+**Every change now needs the server.** The server serves the app the team
+actually loads, so Vercel rebuilding on its own is no longer enough — that was
+true under the old shape and is not any more.
 
 ```
-cd D:\Design-Ops-System; git pull
+cd D:\Design-Ops-System; git pull; cd frontend; npm run build
 Stop-ScheduledTask -TaskName 'DesignOps API'; Start-Sleep 3; Start-ScheduledTask -TaskName 'DesignOps API'
 ```
 
-The server also serves its own copy of the frontend as the office-direct
-fallback, so run `npm run build` there too when the UI changes, or that path
-serves an older bundle than Vercel does.
+Skip the build if nothing under `frontend/` changed, and the restart if nothing
+under `backend/` did. When unsure, run both; they are cheap and safe.
+
+**A backend pull does nothing until the restart.** uvicorn reads the code once,
+at startup. This has already bitten: the fix for a bug that blocked submitting
+any over-estimate task for review sat pulled-but-not-running on the server.
 
 **Migrations run automatically** at task start, followed by the bootstrap that
 applies new permissions, roles and settings. Both are idempotent.
+
+After a frontend change, confirm both addresses serve the same bundle:
+
+```
+curl -s https://designops.siegerspintech.com/ | findstr index-
+curl -s https://rn-d-ticketing-system.vercel.app/ | findstr index-
+```
+
+Different hashes mean the server was not rebuilt.
 
 ## Checking it
 
@@ -122,14 +154,17 @@ Three probes, in order of how much they tell you:
 
 | Probe | Answers |
 |---|---|
-| `https://rn-d-ticketing-system.vercel.app/health` | the whole chain works |
-| `https://desktop-h993ees.tailc2b13d.ts.net/health` | server and tunnel are up; Vercel is not in the way |
+| `https://designops.siegerspintech.com/health` | the whole chain works |
+| `https://rn-d-ticketing-system.vercel.app/health` | the legacy address still routes correctly |
 | `http://192.168.2.253:8000/health/db` | the API is up and the database answers |
 
 **Point an uptime monitor at the first one.** It is the only one that fails
 when any part of the chain does — and the chain has already broken silently
 once, in a way where the page still loaded and only the data was missing.
 Nobody reported it.
+
+`/api/auth/me` is a useful fourth probe: it should return **401**, not 200 and
+not 502. A 401 proves the API is reachable *and* still enforcing auth.
 
 Logs on the server:
 
@@ -199,10 +234,14 @@ In `backend\.env` on the server:
 | `SEED_DEFAULT_PASSWORD` | the published default is refused |
 | `FRONTEND_URL`, `EXTRA_CORS_ORIGINS`, `CORS_ORIGIN_REGEX` | only consulted if a browser calls the API cross-origin; with the rewrite in place it does not |
 
-## The network, and why this took a day
+## The network, and what it is capable of blocking
 
-The wired `192.168.2.x` network **blocked Tailscale** until IT allowed it. The
-symptom was thoroughly misleading and will be again if it recurs:
+Tailscale is no longer in this system's path, so the fault below cannot recur
+here. It is kept because the *behaviour of this network* is the lasting lesson:
+**it can filter one destination while everything else works perfectly.**
+
+The wired `192.168.2.x` network **blocked Tailscale** until IT allowed it, and
+the symptom was thoroughly misleading:
 
 - TCP to `controlplane.tailscale.com:443` **connected**
 - The TLS request then **timed out** — no error, no response
@@ -215,34 +254,39 @@ Because the client could not reach its control plane, `tailscale up` hung with
 no output, the GUI's sign-in button opened nothing, and an auth key looked
 rejected. All of it read as a broken client. A clean reinstall changed nothing.
 
-**If Tailscale ever stops working here, test the control plane before touching
-the client:**
+**If `cloudflared` ever goes unhealthy while the machine is plainly online,
+suspect the same thing before touching the service:**
 
 ```
-Test-NetConnection controlplane.tailscale.com -Port 443
-Invoke-WebRequest "https://controlplane.tailscale.com/key?v=142" -TimeoutSec 20 -UseBasicParsing
+Get-Service cloudflared
+Test-NetConnection region1.v2.argotunnel.com -Port 7844
 ```
 
-TCP true and HTTPS timing out is the signature. It is a firewall policy, not
-software.
+`cloudflared` dials **outbound** to Cloudflare on 7844 — QUIC over UDP, falling
+back to TCP. Nothing inbound is needed, which is why no firewall rule exists
+for it. A service that is running while the dashboard shows the tunnel down is
+a filtering signature, not a software fault. Ask IT before reinstalling
+anything.
 
-### Verifying a Funnel is actually public
+### Verifying the public path, properly
 
-Fetching a `ts.net` address **from a machine on the tailnet proves nothing** —
-it resolves internally and returns 200 while the tunnel is invisible to the
-rest of the internet. Vercel is not on the tailnet, so it needs a public
-record. That distinction caused a live outage.
+The mistake that caused a live outage: an origin was tested **from a machine
+that resolved it privately**. The `ts.net` address returned 200 in 69ms from
+the tailnet while being invisible to the rest of the internet — and Vercel, not
+being on the tailnet, got nothing.
 
-The test that distinguishes them:
+Cloudflare removes that particular trap, because the hostname resolves to
+public anycast addresses from everywhere. Confirm that is genuinely what
+answered:
 
 ```
-nslookup -type=A desktop-h993ees.tailc2b13d.ts.net 8.8.8.8
-curl --resolve desktop-h993ees.tailc2b13d.ts.net:443:<that address> https://desktop-h993ees.tailc2b13d.ts.net/health
+nslookup designops.siegerspintech.com 1.1.1.1
+curl -sI https://designops.siegerspintech.com/health | findstr /i cf-ray
 ```
 
-Public A records mean it is genuinely published. Tailscale can take several
-minutes to publish them after Funnel is first enabled on a node. **Confirm this
-before pointing Vercel at a new tunnel, not after.**
+Cloudflare anycast IPs (`104.21.*`, `172.67.*`) plus a `cf-ray` header mean the
+request really crossed the public internet. **Check before pointing anything at
+a new origin, not after.**
 
 ## The laptop
 
@@ -255,28 +299,40 @@ clean recovery.
 > supervised by `D:\mrm-prod\run_backend.ps1`, and it is published on the
 > laptop's own Tailscale Funnel at `u1-l-2rkv8f4.tailc2b13d.ts.net`.
 >
-> **Do not clear that funnel.** It reads as a leftover from this project and is
-> not. Turning it off takes MRM off the internet; that has happened once.
+> **Do not clear that funnel, and do not uninstall Tailscale.** Design Ops no
+> longer uses Tailscale anywhere, which makes "we don't need this any more" an
+> easy and wrong conclusion. MRM still depends on it. Turning that funnel off
+> takes MRM off the internet; that has happened once already.
 
 ## Rollback
 
-The laptop still holds the database as it was at cutover. To fall back:
+Two fallbacks, in increasing order of pain.
+
+**If the tunnel is broken but the server is fine**, the office can work at
+`http://192.168.2.253:8000` immediately. Remote users stay blocked, so this
+buys time rather than solving anything — but the department is never fully
+stopped by a Cloudflare problem.
+
+**If the server itself is gone**, the laptop still holds the database as it was
+at cutover on 31 August:
 
 1. Start the laptop's `DesignOps API` task
-2. Point the two `destination` lines in `frontend/vercel.json` at
-   `u1-l-2rkv8f4.tailc2b13d.ts.net`, commit and push
+2. Repoint the tunnel — add a public hostname on the laptop, or point the three
+   `destination` lines in `frontend/vercel.json` at an address that reaches it,
+   then commit and push
 
 Under two minutes. **This loses everything recorded on the server since
-cutover**, so take a dump from the server first — the laptop's copy is frozen
-at 31 August.
+cutover**, so take a dump from the server first if it is reachable at all.
 
 ## Disaster recovery
 
 Objective: back online within two hours, at most one day of data lost.
 
 - Restore the most recent dump onto the laptop and start its API task
-- Point `vercel.json` at the laptop's tunnel
-- Replace the hardware, then rebuild the server from this document
+- Repoint the tunnel, or `vercel.json`, at whatever is serving
+- Replace the hardware, then rebuild the server from this document — the
+  Cloudflare tunnel is recreated by rerunning the connector install command
+  from the Zero Trust dashboard, and the DNS record follows automatically
 
 That only holds while backups are current and restore-tested. Restore one into
 a scratch database monthly and note the result — and get them off that single
